@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 4%;
+    --foreground: 0 0% 97%;
+
+    --card: 220 15% 8%;
+    --card-foreground: 0 0% 97%;
+
+    --popover: 220 15% 8%;
+    --popover-foreground: 0 0% 97%;
+
+    --primary: 186 100% 50%;
+    --primary-foreground: 220 20% 4%;
+
+    --secondary: 270 100% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 10% 15%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 270 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 10% 18%;
+    --input: 220 10% 18%;
+    --ring: 186 100% 50%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 220 15% 6%;
+    --sidebar-foreground: 0 0% 97%;
+    --sidebar-primary: 186 100% 50%;
+    --sidebar-primary-foreground: 220 20% 4%;
+    --sidebar-accent: 220 10% 15%;
+    --sidebar-accent-foreground: 0 0% 97%;
+    --sidebar-border: 220 10% 18%;
+    --sidebar-ring: 186 100% 50%;
+
+    --cyan: 186 100% 50%;
+    --violet: 270 100% 50%;
+    --smoke: 0 0% 24%;
+    --cloud: 0 0% 97%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-gradient-cyan {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--cyan)), hsl(var(--violet)));
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 30px -5px hsl(var(--cyan) / 0.4), 0 0 60px -10px hsl(var(--cyan) / 0.2);
+  }
+
+  .glow-violet {
+    box-shadow: 0 0 30px -5px hsl(var(--violet) / 0.4);
+  }
+
+  .border-gradient {
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    position: relative;
+  }
+
+  .border-gradient::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, hsl(var(--cyan)), hsl(var(--violet)));
+    z-index: -1;
+  }
+}
