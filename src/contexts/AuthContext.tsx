@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { authService } from "@/api/authService";
 import type { User, Session } from "@supabase/supabase-js";
 
 type SubscriptionTier = "free" | "pro" | "proplus";
@@ -33,10 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkSubscription = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("check-subscription");
-      if (error) throw error;
-      setSubscribed(data.subscribed ?? false);
-      setTier(data.tier ?? "free");
+      const data = await authService.checkSubscription();
+      setSubscribed(data.subscribed);
+      setTier(data.tier as SubscriptionTier);
     } catch {
       setSubscribed(false);
       setTier("free");
@@ -44,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const subscription = authService.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
@@ -58,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    authService.getSession().then((session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

@@ -28,5 +28,17 @@ export const authService = {
   onAuthStateChange(callback: (event: string, session: any) => void) {
     const { data } = supabase.auth.onAuthStateChange(callback);
     return data.subscription;
+  },
+
+  /**
+   * Check user subscription status
+   */
+  async checkSubscription() {
+    const { data, error } = await supabase.functions.invoke("check-subscription");
+    if (error) throw error;
+    return {
+      subscribed: data.subscribed ?? false,
+      tier: data.tier ?? "free"
+    };
   }
 };

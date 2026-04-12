@@ -1,45 +1,8 @@
-import { useState } from "react";
-import { User, LogOut } from "lucide-react";
 import heroLogo from "@/assets/hero-logo.png";
-import { useAuth } from "@/contexts/AuthContext";
-import AuthModal from "@/components/AuthModal";
-import { supabase } from "@/integrations/supabase/client";
 
 const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => {
-  const { user, tier } = useAuth();
-  const [authOpen, setAuthOpen] = useState(false);
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4">
-      {/* Top nav */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
-        {user ? (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              {user.email}
-            </span>
-            {tier !== "free" && (
-              <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase">
-                {tier}
-              </span>
-            )}
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              title="Cerrar sesión"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAuthOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-foreground text-sm font-semibold hover:bg-muted transition-colors"
-          >
-            <User className="w-4 h-4" /> Entrar
-          </button>
-        )}
-      </div>
-
       {/* Background grid pattern */}
       <div className="absolute inset-0 opacity-[0.04]" style={{
         backgroundImage: `linear-gradient(hsl(var(--cyan)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--cyan)) 1px, transparent 1px)`,
@@ -91,7 +54,6 @@ const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => {
           3 imágenes/día gratis · Sin registro
         </p>
       </div>
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </section>
   );
 };

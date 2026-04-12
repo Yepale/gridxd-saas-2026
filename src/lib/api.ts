@@ -8,6 +8,12 @@
 // Configure this with your deployed backend URL
 const API_BASE_URL = import.meta.env.VITE_GRIDXD_API_URL || "";
 
+export interface ProcessingOptions {
+  removeBackground: boolean;
+  upscale: boolean;
+  projectName?: string;
+}
+
 export interface ProcessedResult {
   zipUrl: string;
   images: { url: string; name: string }[];
@@ -29,13 +35,19 @@ export function isBackendAvailable(): boolean {
  * Process image via the real Python backend (OpenCV + rembg)
  * Only available for Pro users when backend is deployed
  */
-export async function processImageBackend(file: File): Promise<ProcessedResult> {
+export async function processImageBackend(file: File, options: ProcessingOptions): Promise<ProcessedResult> {
   if (!API_BASE_URL) {
-    throw new Error("Backend not configured. Set VITE_GRIDXD_API_URL.");
+    throw new Error("Backend no configurado. Configura VITE_GRIDXD_API_URL.");
   }
 
   const formData = new FormData();
   formData.append("image", file);
+  formData.append("remove_background", String(options.removeBackground));
+  formData.append("upscale", String(options.upscale));
+  
+  if (options.projectName) {
+    formData.append("project_name", options.projectName);
+  }
   
   // 🧠 PROMPT MAESTRO (Strict Output Quality Rules for the AI Generator on Railway)
   const systemPrompt = `You are a senior product designer specialized in creating premium icon systems like Apple SF Symbols, Linear Icons, and modern SaaS design systems.
@@ -86,12 +98,14 @@ FAIL CONDITIONS (DO NOT DO):
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: "Error desconocido" }));
+    const error = await response.json().catch(() => ({ detail: "Error del servidor de Railway" }));
     throw new Error(error.detail || `Error ${response.status}`);
   }
 
   return response.json();
 }
+
+
 
 /**
  * Get current user tier info

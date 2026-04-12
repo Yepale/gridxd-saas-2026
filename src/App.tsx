@@ -4,9 +4,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
-import Index from "./pages/Index.tsx";
-import CheckoutSuccess from "./pages/CheckoutSuccess.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import Index from "./pages/Index";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
+import NotFound from "./pages/NotFound";
+import AvisoLegal from "./pages/legal/AvisoLegal";
+import Privacidad from "./pages/legal/Privacidad";
+import Cookies from "./pages/legal/Cookies";
+import Terminos from "./pages/legal/Terminos";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +24,10 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/checkout/success" element={<CheckoutSuccess />} />
+            <Route path="/legal/aviso-legal" element={<AvisoLegal />} />
+            <Route path="/legal/privacidad" element={<Privacidad />} />
+            <Route path="/legal/cookies" element={<Cookies />} />
+            <Route path="/legal/terminos" element={<Terminos />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

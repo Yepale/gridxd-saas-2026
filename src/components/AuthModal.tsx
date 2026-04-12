@@ -14,6 +14,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   if (!open) return null;
 
@@ -24,6 +25,11 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
 
     try {
       if (isSignUp) {
+        if (!agreed) {
+          setMessage("Debes aceptar la política de privacidad para registrarte.");
+          setLoading(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -100,6 +106,21 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
             minLength={6}
             className="w-full px-4 py-3 rounded-lg bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
+
+          {isSignUp && (
+            <div className="flex items-start gap-3 py-2">
+              <input 
+                type="checkbox" 
+                id="privacy-policy" 
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary focus:ring-offset-0"
+              />
+              <label htmlFor="privacy-policy" className="text-xs text-muted-foreground leading-snug">
+                He leído y acepto la <a href="/legal/privacidad" target="_blank" className="text-primary hover:underline">Política de Privacidad</a> y los <a href="/legal/terminos" target="_blank" className="text-primary hover:underline">Términos de Servicio</a>.
+              </label>
+            </div>
+          )}
           <button
             type="submit"
             disabled={loading}

@@ -1,12 +1,18 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, X, Loader2, Download, Sparkles, Lock } from "lucide-react";
 import { useImageProcessor, statusMessages } from "@/hooks/useImageProcessor";
+import { isBackendAvailable } from "@/lib/api";
 
 const UploadSection = () => {
-  const { state, preview, icons, error, usedBackend, processImage, reset } = useImageProcessor();
+  const { state, preview, icons, error, usedBackend, processImage, reset, options } = useImageProcessor();
   const [dragOver, setDragOver] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-rename when project name changes
+  useEffect(() => {
+    options.updateIconNames();
+  }, [options.projectName, options.upscale]);
 
   const handleDownloadZip = async () => {
     // Show upsell for free users before download
@@ -19,15 +25,22 @@ const UploadSection = () => {
     const zip = new JSZip();
 
     for (const icon of icons) {
+      // Add PNG
       const base64 = icon.dataUrl.split(",")[1];
       zip.file(icon.name, base64, { base64: true });
+      
+      // Add SVG
+      if (icon.svgContent) {
+        const svgName = icon.name.replace(".png", ".svg");
+        zip.file(svgName, icon.svgContent);
+      }
     }
 
     const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "gridxd-icons.zip";
+    a.download = `${options.projectName || "gridxd"}-assets-hd.zip`;
     a.click();
     URL.revokeObjectURL(url);
     setShowUpsell(false);
@@ -59,11 +72,69 @@ const UploadSection = () => {
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
           Pruébalo ahora
         </h2>
-        <p className="text-muted-foreground text-center mb-12 max-w-lg mx-auto">
-          Sube una imagen con iconos y obtén cada uno separado al instante
+        <p className="text-muted-foreground text-center mb-8 max-w-lg mx-auto">
+          Sube una imagen con iconos y obtén cada uno separado al instante con procesamiento en Railway.
         </p>
 
+        {/* SETTINGS PANEL */}
+        <div className="mb-4 flex items-center justify-end gap-2 px-2">
+          <div className="flex items-center gap-1.5 mr-auto">
+            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">2K UHD</span>
+            <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold">SVG VECTOR</span>
+          </div>
+          <div className={`w-2 h-2 rounded-full ${isBackendAvailable() ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
+          <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+            {isBackendAvailable() ? "Railway API: Connected" : "Local Engine: Active"}
+          </span>
+        </div>
+        <div className="mb-10 grid grid-cols-1 md:grid-cols-3 gap-6 bg-card border border-border p-6 rounded-2xl shadow-sm">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-bold text-foreground">Nombre del Proyecto</label>
+            <input 
+              type="text" 
+              placeholder="Ej: Dashboard_Icons"
+              value={options.projectName}
+              onChange={(e) => options.setProjectName(e.target.value)}
+              className="bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
+          
+          <div className="flex flex-col justify-center gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-foreground">Eliminar Fondo</span>
+                <span className="text-[10px] text-muted-foreground">Activa transparencia PNG</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={options.removeBackground}
+                onChange={(e) => options.setRemoveBackground(e.target.checked)}
+                className="w-5 h-5 accent-primary"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col justify-center gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-foreground flex items-center gap-1">
+                  Alta Resolución 
+                  <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded-full">PRO</span>
+                </span>
+                <span className="text-[10px] text-muted-foreground">Escalado 2K con IA</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={options.upscale}
+                onChange={(e) => options.setUpscale(e.target.checked)}
+                className="w-5 h-5 accent-primary"
+              />
+            </div>
+          </div>
+        </div>
+
         {state === "idle" && !preview ? (
+
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -162,12 +233,10 @@ const UploadSection = () => {
 
             <div className="flex items-center justify-between mb-6">
               <p className="text-foreground font-semibold">
-                {icons.length} iconos detectados
-                {usedBackend && (
-                  <span className="ml-2 text-xs text-primary font-normal bg-primary/10 px-2 py-0.5 rounded-full">
-                    HD
-                  </span>
-                )}
+                {icons.length} activos detectados
+                <span className="ml-2 text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-full">
+                  PNG HD + SVG
+                </span>
               </p>
               <div className="flex gap-3">
                 <button
@@ -215,7 +284,9 @@ const UploadSection = () => {
                     >
                       {/* Icon Base */}
                       <div 
-                        className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white dark:bg-[#0A0A0A] rounded-xl flex items-center justify-center border border-border/30 shadow-sm group-hover:shadow-md group-hover:border-primary/40 group-hover:-translate-y-1 transition-all overflow-hidden relative"
+                        className={`w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white dark:bg-[#0A0A0A] rounded-xl flex items-center justify-center border border-border/30 shadow-sm transition-all overflow-hidden relative hover-glow-premium ${
+                          usedBackend ? "animate-breath" : ""
+                        }`}
                       >
                         <img
                           src={icon.dataUrl}
@@ -258,9 +329,9 @@ const UploadSection = () => {
               </div>
             )}
 
-            {usedBackend && (
+            {icons.length > 0 && (
               <p className="text-center text-muted-foreground text-sm mt-8">
-                {icons.length} iconos en HD listos. Descárgalos en 1 clic.
+                {icons.length} activos en 2K y SVG listos. Descárgalos en un ZIP.
               </p>
             )}
           </div>
