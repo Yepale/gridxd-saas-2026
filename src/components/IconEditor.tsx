@@ -385,8 +385,8 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
                   height={h}
                   fill={isHovered ? "hsl(var(--primary) / 0.08)" : "hsl(var(--primary) / 0.04)"}
                   stroke="hsl(var(--primary))"
-                  strokeWidth={isHovered || action?.id === r.id ? 2 : 1.5}
-                  strokeDasharray={isHovered || action?.id === r.id ? "none" : "6 3"}
+                  strokeWidth={isHovered || (action?.type !== "draw" && action?.id === r.id) ? 2 : 1.5}
+                  strokeDasharray={isHovered || (action?.type !== "draw" && action?.id === r.id) ? "none" : "6 3"}
                   rx={4}
                   className="transition-all duration-75 pointer-events-none"
                 />

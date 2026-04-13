@@ -13,6 +13,7 @@ figma.ui.onmessage = async (msg) => {
 
     try {
       const node = selection[0];
+      if (!node) return;
       
       // 2. Exportar el nodo seleccionado a Uint8Array (PNG)
       const bytes = await node.exportAsync({ format: 'PNG' });

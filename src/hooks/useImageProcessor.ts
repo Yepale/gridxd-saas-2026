@@ -116,26 +116,64 @@ function detectRegionsFromCanvas(
 
       const rw = maxX - minX;
       const rh = maxY - minY;
-      if (rw > minSize && rh > minSize && count > 100) {
-        const overlaps = rawRegions.some(
-          (r) => !(maxX < r.minX || minX > r.maxX || maxY < r.minY || minY > r.maxY)
-        );
-        if (!overlaps) {
-          rawRegions.push({ minX, minY, maxX, maxY });
-        }
+      if (count > 20) {
+        rawRegions.push({ minX, minY, maxX, maxY });
       }
     }
   }
 
+  // Merge nearby regions (crucial for logos made of separate letters)
+  let changed = true;
+  const mergeDist = Math.min(width, height) * 0.04; // 4% of shortest side, e.g., 40px on 1080p
+
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < rawRegions.length; i++) {
+      for (let j = i + 1; j < rawRegions.length; j++) {
+        const r1 = rawRegions[i];
+        const r2 = rawRegions[j];
+
+        // Check if overlaps or is nearby
+        const isNearby =
+          r1.minX < r2.maxX + mergeDist &&
+          r1.maxX + mergeDist > r2.minX &&
+          r1.minY < r2.maxY + mergeDist &&
+          r1.maxY + mergeDist > r2.minY;
+
+        if (isNearby) {
+          // Merge r2 into r1
+          rawRegions[i] = {
+            minX: Math.min(r1.minX, r2.minX),
+            minY: Math.min(r1.minY, r2.minY),
+            maxX: Math.max(r1.maxX, r2.maxX),
+            maxY: Math.max(r1.maxY, r2.maxY),
+          };
+          rawRegions.splice(j, 1);
+          changed = true;
+          break; // break inner loop and restart
+        }
+      }
+      if (changed) break; 
+    }
+  }
+
+  // Filter out the tiny noise that didn't merge into anything significant
+  const finalRegions = rawRegions.filter(r => {
+    const rw = r.maxX - r.minX;
+    const rh = r.maxY - r.minY;
+    // Keep it if it has at least some significant width or height
+    return (rw > minSize * 0.5 && rh > minSize * 0.5) || (rw > minSize * 1.5) || (rh > minSize * 1.5);
+  });
+
   // Fallback: grid split when nothing found
-  if (rawRegions.length === 0) {
+  if (finalRegions.length === 0) {
     const cols = Math.ceil(Math.sqrt(Math.max(1, Math.floor(width / 100))));
     const rows = cols;
     const cellW = width / cols;
     const cellH = height / rows;
-    for (let r = 0; r < rows && rawRegions.length < 9; r++) {
-      for (let c = 0; c < cols && rawRegions.length < 9; c++) {
-        rawRegions.push({
+    for (let r = 0; r < rows && finalRegions.length < 9; r++) {
+      for (let c = 0; c < cols && finalRegions.length < 9; c++) {
+        finalRegions.push({
           minX: Math.round(c * cellW),
           minY: Math.round(r * cellH),
           maxX: Math.round((c + 1) * cellW),
@@ -145,7 +183,7 @@ function detectRegionsFromCanvas(
     }
   }
 
-  return rawRegions.slice(0, 20).map((r, i) => ({
+  return finalRegions.slice(0, 20).map((r, i) => ({
     id: `region-${i}-${Date.now()}`,
     ...r,
   }));
@@ -188,7 +226,7 @@ async function extractIconsFromRegions(
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = sw;
     tempCanvas.height = sh;
-    const tempCtx = tempCanvas.getContext("2d")!;
+    const tempCtx = tempCanvas.getContext("2d", { willReadFrequently: true })!;
     tempCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
     if (options.removeBackground) {
@@ -236,7 +274,7 @@ async function extractIconsFromRegions(
     const paddedId = id.toString().padStart(2, "0");
     const resLabel = options.upscale ? "2K" : "HD";
 
-    const svgString = ImageTracer.getSVGString(
+    const svgString = ImageTracer.imagedataToSVG(
       tempCtx.getImageData(0, 0, sw, sh),
       { ltres: 0.1, qtres: 1, pathomit: 8, colorsampling: 1, numberofcolors: 2, mincolorratio: 0.5 }
     );

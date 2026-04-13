@@ -24,7 +24,7 @@ program
   .option("--no-bg-removal", "Desactiva la eliminación de fondo transparente")
   .action(async (file, options) => {
     const filePath = path.resolve(process.cwd(), file);
-    
+
     if (!fs.existsSync(filePath)) {
       console.error(chalk.red(`❌ Archivo no encontrado: ${filePath}`));
       process.exit(1);
@@ -32,13 +32,13 @@ program
 
     try {
       console.log(chalk.cyan("🚀 Iniciando extracción con GridXD..."));
-      
+
       const form = new FormData();
       form.append("file", fs.createReadStream(filePath));
       form.append("options", JSON.stringify({
         upscale: options.upscale,
         removeBackground: options.bgRemoval
-      }));
+      }));* -+º
 
       console.log(chalk.gray(`Subiendo ${path.basename(filePath)} al motor de IA...`));
 
@@ -50,7 +50,7 @@ program
 
       if (response.data?.images?.length > 0) {
         console.log(chalk.green(`✅ Procesamiento completado. ${response.data.images.length} iconos extraídos.`));
-        
+
         // En una app real de CLI, descargaríamos el .zip aquí.
         // Para este prototipo, mostramos que devolvió resultados en base64 simulados.
         console.log(chalk.yellow("⚡ Para obtener los archivos finales en ZIP, ejecuta con '--download-zip'. (Prototipo)"));
