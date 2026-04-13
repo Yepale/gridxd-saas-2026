@@ -3,10 +3,49 @@ import { Upload, X, Loader2, Download, Sparkles, Lock } from "lucide-react";
 import { useImageProcessor, statusMessages } from "@/hooks/useImageProcessor";
 import { isBackendAvailable } from "@/lib/api";
 
+type CanvasMode = "grid" | "white" | "black" | "transparent";
+
+const canvasBgStyles: Record<CanvasMode, React.CSSProperties> = {
+  grid: {
+    backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(150,150,150,0.15) 1px, transparent 0)',
+    backgroundSize: '24px 24px',
+  },
+  white: { background: '#ffffff' },
+  black: { background: '#000000' },
+  transparent: {
+    backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
+    backgroundSize: '16px 16px',
+    backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
+  },
+};
+
+// Compress a dataUrl PNG to a smaller size using canvas scaling
+async function compressIcon(dataUrl: string, quality = 0.85): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      // Scale down to 1024 max for ZIP (keep 2K only as source)
+      const MAX = 1024;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = dataUrl;
+  });
+}
+
 const UploadSection = () => {
   const { state, preview, icons, error, usedBackend, processImage, reset, options } = useImageProcessor();
   const [dragOver, setDragOver] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
+  const [canvasMode, setCanvasMode] = useState<CanvasMode>('grid');
+  const [compressZip, setCompressZip] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-rename when project name changes
@@ -25,8 +64,11 @@ const UploadSection = () => {
     const zip = new JSZip();
 
     for (const icon of icons) {
-      // Add PNG
-      const base64 = icon.dataUrl.split(",")[1];
+      // Optionally compress PNG before adding to ZIP
+      const pngDataUrl = compressZip
+        ? await compressIcon(icon.dataUrl)
+        : icon.dataUrl;
+      const base64 = pngDataUrl.split(",")[1];
       zip.file(icon.name, base64, { base64: true });
       
       // Add SVG
@@ -36,7 +78,7 @@ const UploadSection = () => {
       }
     }
 
-    const blob = await zip.generateAsync({ type: "blob" });
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -87,7 +129,7 @@ const UploadSection = () => {
             {isBackendAvailable() ? "Railway API: Connected" : "Local Engine: Active"}
           </span>
         </div>
-        <div className="mb-10 grid grid-cols-1 md:grid-cols-3 gap-6 bg-card border border-border p-6 rounded-2xl shadow-sm">
+        <div className="mb-10 grid grid-cols-1 md:grid-cols-4 gap-6 bg-card border border-border p-6 rounded-2xl shadow-sm">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-bold text-foreground">Nombre del Proyecto</label>
             <input 
@@ -127,6 +169,21 @@ const UploadSection = () => {
                 type="checkbox" 
                 checked={options.upscale}
                 onChange={(e) => options.setUpscale(e.target.checked)}
+                className="w-5 h-5 accent-primary"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col justify-center gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-foreground">Compresión ZIP</span>
+                <span className="text-[10px] text-muted-foreground">Reduce tamaño ~50%</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={compressZip}
+                onChange={(e) => setCompressZip(e.target.checked)}
                 className="w-5 h-5 accent-primary"
               />
             </div>
@@ -255,7 +312,7 @@ const UploadSection = () => {
             </div>
 
             {/* PREMIUM FIGMA-STYLE PREVIEW CANVAS */}
-            <div className="relative rounded-2xl border border-border/50 bg-[#F9FAFB] dark:bg-[#111111] overflow-hidden shadow-2xl mb-8">
+            <div className="relative rounded-2xl border border-border/50 overflow-hidden shadow-2xl mb-8">
               {/* Toolbar/Header mimicking a design tool */}
               <div className="border-b border-border/50 bg-white/80 dark:bg-black/80 backdrop-blur-md px-4 py-3 flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-3">
@@ -266,15 +323,35 @@ const UploadSection = () => {
                     Design System Preview · {icons.length} Assets
                   </span>
                 </div>
+                {/* Modo Diseño Controls */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground mr-2 font-semibold uppercase tracking-wider">Fondo</span>
+                  {([ 
+                    { mode: 'grid' as CanvasMode, label: '⊞', title: 'Cuadrícula' },
+                    { mode: 'white' as CanvasMode, label: '○', title: 'Blanco' },
+                    { mode: 'black' as CanvasMode, label: '●', title: 'Negro' },
+                    { mode: 'transparent' as CanvasMode, label: '◧', title: 'Transparente' },
+                  ]).map(({ mode, label, title }) => (
+                    <button
+                      key={mode}
+                      title={title}
+                      onClick={() => setCanvasMode(mode)}
+                      className={`w-7 h-7 rounded-md text-sm font-bold transition-all ${
+                        canvasMode === mode
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Canvas Area with Dot Grid */}
+              {/* Canvas Area — Dynamic Background Mode */}
               <div 
-                className="p-8 pb-12 w-full max-h-[500px] overflow-y-auto"
-                style={{
-                  backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(150, 150, 150, 0.15) 1px, transparent 0)',
-                  backgroundSize: '24px 24px',
-                }}
+                className="p-8 pb-12 w-full max-h-[500px] overflow-y-auto transition-all duration-500"
+                style={canvasBgStyles[canvasMode]}
               >
                 <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-6 max-w-5xl mx-auto">
                   {icons.map((icon) => (
