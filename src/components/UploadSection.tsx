@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, X, Loader2, Download, Sparkles, Lock } from "lucide-react";
 import { useImageProcessor, statusMessages } from "@/hooks/useImageProcessor";
 import { isBackendAvailable } from "@/lib/api";
+import IconEditor from "@/components/IconEditor";
 
 type CanvasMode = "grid" | "white" | "black" | "transparent";
 
@@ -41,7 +42,7 @@ async function compressIcon(dataUrl: string, quality = 0.85): Promise<string> {
 }
 
 const UploadSection = () => {
-  const { state, preview, icons, error, usedBackend, processImage, reset, options } = useImageProcessor();
+  const { state, preview, icons, error, usedBackend, processImage, reset, options, detectedRegions, confirmRegions, pendingImgEl } = useImageProcessor();
   const [dragOver, setDragOver] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
   const [canvasMode, setCanvasMode] = useState<CanvasMode>('grid');
@@ -221,6 +222,16 @@ const UploadSection = () => {
               JPG o PNG · Máximo 10MB
             </p>
           </div>
+
+        ) : state === "editing" && pendingImgEl ? (
+
+          <IconEditor
+            imgEl={pendingImgEl}
+            initialRegions={detectedRegions}
+            onConfirm={confirmRegions}
+            onCancel={reset}
+          />
+
         ) : state !== "done" ? (
           <div className="text-center py-16">
             {preview && (
