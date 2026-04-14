@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Upload, X, Loader2, Download, Sparkles, Lock, AlertTriangle } from "lucide-react";
+import { Upload, X, Loader2, Download, Sparkles, Lock, AlertTriangle, Maximize2 } from "lucide-react";
 import { useImageProcessor, statusMessages } from "@/hooks/useImageProcessor";
 import { useIconGenerator } from "@/hooks/useIconGenerator";
 import { isBackendAvailable } from "@/lib/api";
+import { applyStyleToSvg, canAccessStyle, STYLE_META, type SvgStyle } from "@/lib/svgStyle";
+import { useAuth } from "@/contexts/AuthContext";
 import IconEditor from "@/components/IconEditor";
 import { StyleCard } from "@/components/StyleCard";
 import { SidebarIconGenerator } from "@/components/SidebarIconGenerator";
@@ -47,6 +49,7 @@ async function compressIcon(dataUrl: string, quality = 0.85): Promise<string> {
 
 const UploadSection = () => {
   const { state, preview, icons, error, usedBackend, visualStyle, processImage, reset, options, detectedRegions, confirmRegions, pendingImgEl, injectGeneratedIcon } = useImageProcessor();
+  const { tier } = useAuth();
   const generator = useIconGenerator();
   const { saveToHistory } = useProcessingHistory();
   const [dragOver, setDragOver] = useState(false);
@@ -55,6 +58,7 @@ const UploadSection = () => {
   const [compressZip, setCompressZip] = useState(false);
   const [activeMode, setActiveMode] = useState<"extract" | "generate">("extract");
   const [genVariant, setGenVariant] = useState<string>("outline");
+  const [exportStyle, setExportStyle] = useState<SvgStyle>("outline");
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-rename when project name changes
@@ -102,6 +106,9 @@ const UploadSection = () => {
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
 
+    // Apply selected style to each icon
+    const primaryColor = visualStyle?.color_primary || "#7c3aed";
+
     for (const icon of icons) {
       // Optionally compress PNG before adding to ZIP
       const pngDataUrl = compressZip
@@ -109,11 +116,12 @@ const UploadSection = () => {
         : icon.dataUrl;
       const base64 = pngDataUrl.split(",")[1];
       zip.file(icon.name, base64, { base64: true });
-      
-      // Add SVG
+
+      // Apply style transform to SVG
       if (icon.svgContent) {
-        const svgName = icon.name.replace(".png", ".svg");
-        zip.file(svgName, icon.svgContent);
+        const styledSvg = applyStyleToSvg(icon.svgContent, exportStyle, primaryColor);
+        const svgName = icon.name.replace(".png", `.${exportStyle}.svg`);
+        zip.file(svgName, styledSvg);
       }
     }
 
@@ -121,7 +129,7 @@ const UploadSection = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${options.projectName || "gridxd"}-assets-hd.zip`;
+    a.download = `${options.projectName || "gridxd"}-${exportStyle}-assets.zip`;
     a.click();
     URL.revokeObjectURL(url);
     setShowUpsell(false);
@@ -274,51 +282,88 @@ const UploadSection = () => {
                   </button>
                 </div>
 
-                <StyleCard style={generator.visualStyle} className="mb-10" />
+                <StyleCard style={generator.visualStyle} className="mb-8" />
+
+                {/* Style Preview Switcher */}
+                <div className="mb-6 flex items-center gap-4">
+                  <span className="text-[10px] uppercase tracking-widest font-black text-muted-foreground shrink-0">Preview Estilo:</span>
+                  <div className="flex gap-2">
+                    {(["outline", "filled", "duotone"] as SvgStyle[]).map((s) => {
+                      const locked = !canAccessStyle(tier as "free" | "pro" | "proplus", s);
+                      const active = generator.activeStyle === s;
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => !locked && generator.setActiveStyle(s)}
+                          title={locked ? "Requiere plan PRO" : STYLE_META[s].description}
+                          className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                            locked
+                              ? "border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                              : active
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:border-primary/40 cursor-pointer"
+                          }`}
+                        >
+                          <span aria-hidden>{STYLE_META[s].icon}</span>
+                          {STYLE_META[s].label}
+                          {locked && <Lock className="w-2.5 h-2.5 ml-0.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {generator.generatedIcons.map((icon) => (
-                    <div 
-                      key={icon.id}
-                      className="group bg-muted/30 border border-border/50 p-6 rounded-xl flex flex-col items-center justify-center gap-3 transition-all hover:border-primary/30 hover:bg-primary/5 relative"
-                    >
-                      {icon.svgContent && (
-                        <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-primary/20 text-[8px] font-bold text-primary rounded uppercase tracking-wider">
-                          AI
-                        </div>
-                      )}
-                      <div className="relative w-10 h-10 flex items-center justify-center">
-                        {icon.svgContent ? (
-                          <div 
-                            className="w-full h-full transition-transform group-hover:scale-110"
-                            style={{ color: generator.visualStyle?.color_primary }}
-                            dangerouslySetInnerHTML={{ __html: icon.svgContent }}
-                          />
-                        ) : (
-                          <icon.icon 
-                            className="w-full h-full transition-transform group-hover:scale-110" 
-                            style={{ 
-                              color: generator.visualStyle?.color_primary,
-                              strokeWidth: generator.visualStyle?.stroke_width || 2
-                            }} 
-                          />
+                  {generator.generatedIcons.map((icon) => {
+                    const primaryColor = generator.visualStyle?.color_primary || "currentColor";
+                    const previewSvg = icon.svgContent
+                      ? applyStyleToSvg(icon.svgContent, generator.activeStyle, primaryColor)
+                      : null;
+                    return (
+                      <div 
+                        key={icon.id}
+                        className="group bg-muted/30 border border-border/50 p-6 rounded-xl flex flex-col items-center justify-center gap-3 transition-all hover:border-primary/30 hover:bg-primary/5 relative"
+                      >
+                        {icon.svgContent && (
+                          <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-primary/20 text-[8px] font-bold text-primary rounded uppercase tracking-wider">
+                            AI
+                          </div>
                         )}
+                        <div className="relative w-10 h-10 flex items-center justify-center">
+                          {previewSvg ? (
+                            <div 
+                              className="w-full h-full transition-transform group-hover:scale-110"
+                              style={{ color: primaryColor }}
+                              dangerouslySetInnerHTML={{ __html: previewSvg }}
+                            />
+                          ) : (
+                            <icon.icon 
+                              className="w-full h-full transition-transform group-hover:scale-110" 
+                              style={{ 
+                                color: primaryColor,
+                                strokeWidth: generator.visualStyle?.stroke_width || 2
+                              }} 
+                            />
+                          )}
+                        </div>
+                        <span className="text-[10px] font-mono text-muted-foreground">{icon.name}</span>
                       </div>
-                      <span className="text-[10px] font-mono text-muted-foreground">{icon.name}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="mt-10 p-6 rounded-xl bg-primary/5 border border-primary/20 flex flex-col md:flex-row items-center justify-between gap-6">
                   <div>
                     <h4 className="font-bold text-foreground">¿Listo para exportar?</h4>
-                    <p className="text-sm text-muted-foreground italic">El backend generativo estará disponible pronto para exportar SVGs únicos.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Exportando en estilo <span className="text-primary font-bold uppercase">{generator.activeStyle}</span> — {STYLE_META[generator.activeStyle].description}
+                    </p>
                   </div>
                   <button 
-                    onClick={() => generator.downloadPack(options.projectName)}
+                    onClick={() => generator.downloadPack(options.projectName, generator.activeStyle)}
                     className="px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg hover:shadow-primary/20 transition-all flex items-center gap-2 glow-cyan"
                   >
-                    <Download className="w-5 h-5" /> Descargar Pack DNA
+                    <Download className="w-5 h-5" /> Descargar Pack {generator.activeStyle.charAt(0).toUpperCase() + generator.activeStyle.slice(1)}
                   </button>
                 </div>
               </div>
@@ -351,7 +396,8 @@ const UploadSection = () => {
             {isBackendAvailable() ? "Railway API: Connected" : "Local Engine: Active"}
           </span>
         </div>
-        <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-8 bg-card border border-border p-8 rounded-2xl shadow-sm">
+        <div className="mb-10 grid grid-cols-1 md:grid-cols-3 gap-6 bg-card border border-border p-8 rounded-2xl shadow-sm">
+          {/* Col 1: Project Name */}
           <div className="flex flex-col gap-3">
             <label className="text-[10px] uppercase tracking-widest font-black text-muted-foreground ml-1">
               Nombre del Proyecto
@@ -363,46 +409,104 @@ const UploadSection = () => {
               onChange={(e) => options.setProjectName(e.target.value)}
               className="w-full bg-muted border border-border p-3 rounded-xl focus:ring-2 focus:ring-primary outline-none font-bold text-foreground"
             />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Fondo</span>
+            <div className="flex flex-col gap-2 mt-1">
               <button
                 onClick={() => options.setRemoveBackground(!options.removeBackground)}
-                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-xs font-bold ${
                   options.removeBackground ? "bg-primary/10 border-primary text-primary" : "bg-muted border-border text-muted-foreground"
                 }`}
               >
-                <span className="text-xs font-bold">{options.removeBackground ? "EXTRACT" : "KEEP"}</span>
-                <Sparkles className={`w-4 h-4 ${options.removeBackground ? "opacity-100" : "opacity-40"}`} />
+                <span>Eliminar Fondo</span>
+                <Sparkles className={`w-3.5 h-3.5 ${options.removeBackground ? "opacity-100" : "opacity-40"}`} />
               </button>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Calidad</span>
               <button
                 onClick={() => options.setUpscale(!options.upscale)}
-                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-xs font-bold ${
                   options.upscale ? "bg-primary/10 border-primary text-primary" : "bg-muted border-border text-muted-foreground"
                 }`}
               >
-                <span className="text-xs font-bold">{options.upscale ? "2K UHD" : "STD"}</span>
-                <Maximize2 className={`w-4 h-4 ${options.upscale ? "opacity-100" : "opacity-40"}`} />
+                <span>{options.upscale ? "Calidad 2K UHD" : "Calidad Standard"}</span>
+                <Maximize2 className={`w-3.5 h-3.5 ${options.upscale ? "opacity-100" : "opacity-40"}`} />
               </button>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">ZIP</span>
               <button
                 onClick={() => setCompressZip(!compressZip)}
-                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-xs font-bold ${
                   compressZip ? "bg-primary/10 border-primary text-primary" : "bg-muted border-border text-muted-foreground"
                 }`}
               >
-                <span className="text-xs font-bold">{compressZip ? "READY" : "OFF"}</span>
-                <Download className={`w-4 h-4 ${compressZip ? "opacity-100" : "opacity-40"}`} />
+                <span>{compressZip ? "ZIP Comprimido" : "ZIP Normal"}</span>
+                <Download className={`w-3.5 h-3.5 ${compressZip ? "opacity-100" : "opacity-40"}`} />
               </button>
+            </div>
+          </div>
+
+          {/* Col 2+3: Style Selector */}
+          <div className="md:col-span-2 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">
+                Estilo de Exportación SVG
+              </span>
+              {tier === "free" && (
+                <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                  FREE — Solo Outline
+                </span>
+              )}
+              {tier === "pro" && (
+                <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full">
+                  PRO — 3 Estilos
+                </span>
+              )}
+              {tier === "proplus" && (
+                <span className="text-[9px] font-bold uppercase tracking-wider bg-green-500/10 text-green-500 border border-green-500/20 px-2 py-0.5 rounded-full">
+                  PRO+ — All Variants
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {(["outline", "filled", "duotone"] as SvgStyle[]).map((s) => {
+                const meta = STYLE_META[s];
+                const locked = !canAccessStyle(tier as "free" | "pro" | "proplus", s);
+                const active = exportStyle === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      if (locked) return; // Upsell to be added
+                      setExportStyle(s);
+                    }}
+                    title={locked ? "Requiere plan PRO" : meta.description}
+                    className={`relative flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 transition-all ${
+                      locked
+                        ? "border-border bg-muted/30 opacity-60 cursor-not-allowed"
+                        : active
+                        ? "border-primary bg-primary/10 shadow-md shadow-primary/10"
+                        : "border-border bg-muted/30 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                    }`}
+                  >
+                    {locked && (
+                      <div className="absolute top-2 right-2">
+                        <Lock className="w-3 h-3 text-muted-foreground" />
+                      </div>
+                    )}
+                    {active && !locked && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    )}
+                    <span className="text-3xl leading-none" aria-hidden>{meta.icon}</span>
+                    <span className={`text-xs font-black uppercase tracking-wider ${active && !locked ? "text-primary" : "text-foreground"}`}>
+                      {meta.label}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground text-center leading-tight">
+                      {meta.description}
+                    </span>
+                    {locked && (
+                      <span className="text-[8px] font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-full mt-0.5">
+                        PRO
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

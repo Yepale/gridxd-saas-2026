@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { extractStyleFromBackend, generateIconSVG, VisualStyle } from "@/lib/api";
+import { applyStyleToSvg, type SvgStyle } from "@/lib/svgStyle";
 import { 
   Home, User, Settings, Search, Menu, ArrowLeft, 
   Check, AlertTriangle, Bell, Trash, Plus, Download,
@@ -51,6 +52,7 @@ export function useIconGenerator() {
   const [visualStyle, setVisualStyle] = useState<VisualStyle | null>(null);
   const [generatedIcons, setGeneratedIcons] = useState<GeneratedIcon[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [activeStyle, setActiveStyle] = useState<SvgStyle>("outline");
 
   const generateSystem = useCallback(async (referenceFile: File, variant: string = "outline") => {
     try {
@@ -104,54 +106,69 @@ export function useIconGenerator() {
     setError(null);
   };
 
-  const downloadPack = async (projectName: string = "gridxd-system") => {
+  const downloadPack = async (projectName: string = "gridxd-system", style: SvgStyle = "outline") => {
     if (!visualStyle) return;
 
     try {
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
 
-      // Create a style manifest
+      // Style manifest with export metadata
       const manifest = {
         projectName,
         version: "1.0.0",
+        exportStyle: style,
         dna: visualStyle,
         icons: CORE_ICONS.map(i => i.name)
       };
 
       zip.file("style-dna.json", JSON.stringify(manifest, null, 2));
-      
-      // Add generated SVG files
-      const iconsFolder = zip.folder("icons");
+
+      // Add styled SVG files in a named folder
+      const iconsFolder = zip.folder(`icons/${style}`);
       if (iconsFolder) {
         generatedIcons.forEach(icon => {
-          if (icon.svgContent) {
-            iconsFolder.file(icon.name, icon.svgContent);
+          const svgToExport = icon.svgContent
+            ? applyStyleToSvg(icon.svgContent, style, visualStyle.color_primary)
+            : null;
+          if (svgToExport) {
+            iconsFolder.file(icon.name, svgToExport);
           }
         });
       }
 
-      // Add a professional README
-      const readme = `# ${projectName} - Icon System DNA
-      
-Generado por GridXD "The System Generator".
-Este pack contiene las especificaciones de diseño extraídas de tu imagen de referencia.
+      // README documenting the exported variant
+      const readme = `# ${projectName} — GridXD Icon System
 
-## Design Tokens
-- Estilo: ${visualStyle.style}
+Generado por GridXD "The System Generator".
+Variante exportada: **${style.toUpperCase()}**
+
+## Design DNA
+- Estilo Base: ${visualStyle.style}
+- Variante Export: ${style}
 - Color Primario: ${visualStyle.color_primary}
 - Stroke: ${visualStyle.stroke_width}px
 - Mood: ${visualStyle.mood}
+- Grid: ${visualStyle.grid_size}×${visualStyle.grid_size}
 
-*Próximamente: SVGs personalizados generados por IA.*`;
+## Estructura
+\`\`\`
+icons/${style}/
+  icon-home.svg
+  icon-user.svg
+  ... (24 iconos)
+style-dna.json
+\`\`\`
+
+gridxd.io — Design Intelligence`;
 
       zip.file("README.md", readme);
 
-      const blob = await zip.generateAsync({ type: "blob" });
+      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${projectName.toLowerCase().replace(/\s+/g, '-')}-dna.zip`;
+      a.download = `${projectName.toLowerCase().replace(/\s+/g, '-')}-${style}.zip`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -165,6 +182,8 @@ Este pack contiene las especificaciones de diseño extraídas de tu imagen de re
     visualStyle,
     generatedIcons,
     error,
+    activeStyle,
+    setActiveStyle,
     generateSystem,
     reset,
     downloadPack,
