@@ -81,71 +81,55 @@ serve(async (req) => {
         const customerId = sub.customer as string;
         const productId = sub.items.data[0]?.price?.product as string;
         const isActive = ["active", "trialing"].includes(sub.status);
+        const userId = sub.metadata?.supabase_user_id;
+
+        if (!userId) {
+          console.warn("No supabase_user_id found in subscription metadata");
+          break;
+        }
 
         const tier = isActive ? (PRODUCT_TO_TIER[productId] ?? "pro") : "free";
 
-        // Resolve customer email from Stripe
-        const customer = await stripe.customers.retrieve(customerId);
-        if (customer.deleted || !("email" in customer) || !customer.email) {
-          console.warn("Customer deleted or has no email, skipping");
-          break;
-        }
-
-        // Find user in Supabase by email
-        const { data: users, error: userError } = await supabase.auth.admin.listUsers();
-        if (userError) throw userError;
-
-        const matchedUser = users.users.find((u) => u.email === customer.email);
-        if (!matchedUser) {
-          console.warn(`No Supabase user found for email: ${customer.email}`);
-          break;
-        }
-
-        // Upsert profiles table
+        // Upsert subscribers table
         const { error: upsertError } = await supabase
-          .from("profiles")
+          .from("subscribers")
           .upsert({
-            id: matchedUser.id,
-            subscription_tier: tier,
+            user_id: userId,
+            plan: tier,
+            status: sub.status as any,
             stripe_customer_id: customerId,
             stripe_subscription_id: sub.id,
-            subscription_end: new Date(sub.current_period_end * 1000).toISOString(),
+            current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
             updated_at: new Date().toISOString(),
-          }, { onConflict: "id" });
+          }, { onConflict: "user_id" });
 
         if (upsertError) throw upsertError;
 
-        console.log(`✅ Updated user ${matchedUser.email} → tier: ${tier}`);
+        console.log(`✅ Updated user ${userId} → plan: ${tier}`);
         break;
       }
 
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
-        const customerId = sub.customer as string;
+        const userId = sub.metadata?.supabase_user_id;
 
-        const customer = await stripe.customers.retrieve(customerId);
-        if (customer.deleted || !("email" in customer) || !customer.email) break;
-
-        const { data: users, error: userError } = await supabase.auth.admin.listUsers();
-        if (userError) throw userError;
-
-        const matchedUser = users.users.find((u) => u.email === customer.email);
-        if (!matchedUser) break;
+        if (!userId) break;
 
         // Downgrade to free
         const { error: updateError } = await supabase
-          .from("profiles")
+          .from("subscribers")
           .upsert({
-            id: matchedUser.id,
-            subscription_tier: "free",
+            user_id: userId,
+            plan: "free",
+            status: "canceled",
             stripe_subscription_id: null,
-            subscription_end: null,
+            current_period_end: null,
             updated_at: new Date().toISOString(),
-          }, { onConflict: "id" });
+          }, { onConflict: "user_id" });
 
         if (updateError) throw updateError;
 
-        console.log(`✅ Downgraded user ${matchedUser.email} → tier: free`);
+        console.log(`✅ Downgraded user ${userId} → plan: free`);
         break;
       }
 

@@ -11,6 +11,12 @@
     "currentuser"
   ],
   "networkAccess": {
-    "allowedDomains": ["https://gridxd-main-production.up.railway.app"]
+    "allowedDomains": [
+      "https://gridxd-main-production.up.railway.app",
+      "https://cdn.tailwindcss.com",
+      "https://fonts.googleapis.com",
+      "https://fonts.gstatic.com",
+      "https://cdn.jsdelivr.net"
+    ]
   }
 }

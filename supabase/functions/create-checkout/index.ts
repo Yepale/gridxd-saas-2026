@@ -47,6 +47,14 @@ serve(async (req) => {
       mode: "subscription",
       success_url: `${origin}/checkout/success`,
       cancel_url: `${origin}/?checkout=cancel`,
+      metadata: {
+        supabase_user_id: user.id,
+      },
+      subscription_data: {
+        metadata: {
+          supabase_user_id: user.id,
+        },
+      },
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

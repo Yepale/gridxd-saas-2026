@@ -73,6 +73,22 @@ const PricingSection = () => {
       return;
     }
 
+    // If already on a paid plan, redirect to portal for upgrade/downgrade
+    if (currentTier !== "free") {
+      setLoadingTier(tierKey);
+      try {
+        const url = await stripeService.createPortalSession();
+        if (url) {
+          window.location.href = url;
+        }
+      } catch (err: any) {
+        toast.error(err.message || "Error al abrir portal de suscripción");
+      } finally {
+        setLoadingTier(null);
+      }
+      return;
+    }
+
     const stripeTier = STRIPE_TIERS[tierKey as keyof typeof STRIPE_TIERS];
     if (!stripeTier) return;
 
@@ -80,7 +96,7 @@ const PricingSection = () => {
     try {
       const url = await stripeService.createCheckoutSession(stripeTier.price_id);
       if (url) {
-        window.open(url, "_blank");
+        window.location.href = url;
       }
     } catch (err: any) {
       toast.error(err.message || "Error al crear sesión de pago");
@@ -104,45 +120,47 @@ const PricingSection = () => {
           Cada minuto recortando iconos es un minuto que no estás diseñando
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto pb-8 snap-x snap-mandatory no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`relative rounded-xl p-8 border transition-all duration-300 ${
+              className={`relative flex-shrink-0 w-[85vw] md:w-full snap-center rounded-[2.5rem] p-8 border transition-all duration-300 ${
                 plan.highlighted
                   ? "bg-card border-primary glow-cyan"
-                  : "bg-card border-border hover:border-muted-foreground/30"
+                  : "bg-card border-border hover:border-muted-foreground/30 shadow-xl"
               } ${isCurrentPlan(plan.tierKey) ? "ring-2 ring-primary" : ""}`}
             >
               {plan.highlighted && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center gap-1">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center gap-1 shadow-lg">
                   <Sparkles className="w-3 h-3" />
                   POPULAR
                 </div>
               )}
 
               {isCurrentPlan(plan.tierKey) && (
-                <div className="absolute -top-3 right-4 px-3 py-1 bg-accent text-accent-foreground text-xs font-bold rounded-full">
+                <div className="absolute -top-3 right-6 px-3 py-1 bg-accent text-accent-foreground text-xs font-bold rounded-full shadow-md">
                   TU PLAN
                 </div>
               )}
 
               <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
               <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-4xl font-black">{plan.price}</span>
+                <span className="text-5xl font-black">{plan.price}</span>
                 {plan.period && (
-                  <span className="text-muted-foreground">{plan.period}</span>
+                  <span className="text-muted-foreground font-medium">{plan.period}</span>
                 )}
               </div>
-              <p className="text-muted-foreground text-sm mb-6">
+              <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
                 {plan.description}
               </p>
 
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-4 mb-10 flex-grow">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-sm">
-                    <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                    <span>{feature}</span>
+                  <li key={feature} className="flex items-start gap-3 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <span className="text-foreground/80">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -150,11 +168,11 @@ const PricingSection = () => {
               <button
                 onClick={() => handleActivate(plan.tierKey)}
                 disabled={isCurrentPlan(plan.tierKey) || (loadingTier !== null && loadingTier === plan.tierKey)}
-                className={`w-full py-3 rounded-lg font-semibold transition-all ${
+                className={`w-full py-4 rounded-2xl font-bold text-sm transition-all shadow-lg ${
                   plan.highlighted
-                    ? "bg-primary text-primary-foreground hover:scale-105 glow-cyan"
-                    : "bg-muted text-foreground hover:bg-muted/80"
-                } disabled:opacity-50 disabled:hover:scale-100`}
+                    ? "bg-primary text-primary-foreground hover:scale-105 active:scale-95 glow-cyan"
+                    : "bg-muted text-foreground hover:bg-muted/80 active:scale-95"
+                } disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100`}
               >
                 {(loadingTier !== null && loadingTier === plan.tierKey)
                   ? "Cargando..."

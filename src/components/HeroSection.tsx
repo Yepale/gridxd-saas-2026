@@ -14,9 +14,9 @@ const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => {
       <div className="relative z-10 text-center max-w-4xl mx-auto">
         <div className="mb-8 flex justify-center">
           <img
-            src="/Grid Ne_n Sin Fondo.png"
+            src="/LogoMainGRIDXD.png"
             alt="GridXD"
-            className="w-32 h-32 animate-float object-contain"
+            className="w-40 h-40 animate-float object-contain"
           />
         </div>
 

@@ -6,6 +6,9 @@ import {
   Check, AlertTriangle, Bell, Trash, Plus, Download,
   Phone, Mail, Calendar, MapPin, Heart, Star,
   Eye, MessageSquare, Upload, Lock, ShoppingCart, FileText,
+  ExternalLink, Share, Edit, Copy, Save, Filter, LogOut, LogIn,
+  UserPlus, UserMinus, Camera, Image, Video, Music, Mic, Volume2,
+  Cloud, Wind, Sun, Moon, Map, Navigation, Briefcase, GraduationCap,
   type LucideIcon 
 } from "lucide-react";
 
@@ -25,6 +28,7 @@ const CORE_ICONS: GeneratedIcon[] = [
   { id: "back", name: "icon-back.svg", icon: ArrowLeft },
   { id: "check", name: "icon-check.svg", icon: Check },
   { id: "warning", name: "icon-warning.svg", icon: AlertTriangle },
+  // 8 Icons
   { id: "notif", name: "icon-bell.svg", icon: Bell },
   { id: "delete", name: "icon-trash.svg", icon: Trash },
   { id: "add", name: "icon-plus.svg", icon: Plus },
@@ -41,6 +45,32 @@ const CORE_ICONS: GeneratedIcon[] = [
   { id: "lock", name: "icon-lock.svg", icon: Lock },
   { id: "cart", name: "icon-cart.svg", icon: ShoppingCart },
   { id: "file", name: "icon-file.svg", icon: FileText },
+  // 24 Icons
+  { id: "external", name: "icon-external.svg", icon: ExternalLink },
+  { id: "share", name: "icon-share.svg", icon: Share },
+  { id: "edit", name: "icon-edit.svg", icon: Edit },
+  { id: "copy", name: "icon-copy.svg", icon: Copy },
+  { id: "save", name: "icon-save.svg", icon: Save },
+  { id: "filter", name: "icon-filter.svg", icon: Filter },
+  { id: "logout", name: "icon-logout.svg", icon: LogOut },
+  { id: "login", name: "icon-login.svg", icon: LogIn },
+  { id: "userplus", name: "icon-user-plus.svg", icon: UserPlus },
+  { id: "userminus", name: "icon-user-minus.svg", icon: UserMinus },
+  { id: "camera", name: "icon-camera.svg", icon: Camera },
+  { id: "image", name: "icon-image.svg", icon: Image },
+  { id: "video", name: "icon-video.svg", icon: Video },
+  { id: "music", name: "icon-music.svg", icon: Music },
+  { id: "mic", name: "icon-mic.svg", icon: Mic },
+  { id: "volume", name: "icon-volume.svg", icon: Volume2 },
+  { id: "cloud", name: "icon-cloud.svg", icon: Cloud },
+  { id: "wind", name: "icon-wind.svg", icon: Wind },
+  { id: "sun", name: "icon-sun.svg", icon: Sun },
+  { id: "moon", name: "icon-moon.svg", icon: Moon },
+  { id: "map", name: "icon-map.svg", icon: Map },
+  { id: "navigation", name: "icon-navigation.svg", icon: Navigation },
+  { id: "briefcase", name: "icon-briefcase.svg", icon: Briefcase },
+  { id: "graduation", name: "icon-graduation.svg", icon: GraduationCap },
+  // 48 Icons
 ];
 
 export type GeneratorState = "idle" | "analyzing" | "generating" | "done" | "error";
@@ -53,12 +83,14 @@ export function useIconGenerator() {
   const [generatedIcons, setGeneratedIcons] = useState<GeneratedIcon[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeStyle, setActiveStyle] = useState<SvgStyle>("outline");
+  const [packSize, setPackSize] = useState<number>(24);
 
-  const generateSystem = useCallback(async (referenceFile: File, variant: string = "outline") => {
+  const generateSystem = useCallback(async (referenceFile: File, variant: string = "outline", size: number = 24) => {
     try {
       setError(null);
       setGeneratedIcons([]);
       setState("analyzing");
+      setPackSize(size);
       
       // 1. Extract Visual DNA with Gemini
       const style = await extractStyleFromBackend(referenceFile);
@@ -73,9 +105,10 @@ export function useIconGenerator() {
       
       // 2. Real generation of the core set via AI
       const systemIcons: GeneratedIcon[] = [];
+      const selectedIcons = CORE_ICONS.slice(0, size);
       
       // Process icons in small batches or one by one
-      for (const baseIcon of CORE_ICONS) {
+      for (const baseIcon of selectedIcons) {
         try {
           const svg = await generateIconSVG(baseIcon.id, style, variant);
           systemIcons.push({
@@ -106,71 +139,19 @@ export function useIconGenerator() {
     setError(null);
   };
 
-  const downloadPack = async (projectName: string = "gridxd-system", style: SvgStyle = "outline") => {
+  const downloadPack = async (projectName: string = "gridxd-system", style: SvgStyle = "outline", allStyles: boolean = false) => {
     if (!visualStyle) return;
 
     try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
+      const { downloadGeneratorPack } = await import("@/lib/zip-utils");
+      
+      const exportStyles: SvgStyle[] = allStyles ? ["outline", "filled", "duotone"] : [style];
 
-      // Style manifest with export metadata
-      const manifest = {
+      await downloadGeneratorPack(generatedIcons, visualStyle, {
         projectName,
-        version: "1.0.0",
-        exportStyle: style,
-        dna: visualStyle,
-        icons: CORE_ICONS.map(i => i.name)
-      };
-
-      zip.file("style-dna.json", JSON.stringify(manifest, null, 2));
-
-      // Add styled SVG files in a named folder
-      const iconsFolder = zip.folder(`icons/${style}`);
-      if (iconsFolder) {
-        generatedIcons.forEach(icon => {
-          const svgToExport = icon.svgContent
-            ? applyStyleToSvg(icon.svgContent, style, visualStyle.color_primary)
-            : null;
-          if (svgToExport) {
-            iconsFolder.file(icon.name, svgToExport);
-          }
-        });
-      }
-
-      // README documenting the exported variant
-      const readme = `# ${projectName} — GridXD Icon System
-
-Generado por GridXD "The System Generator".
-Variante exportada: **${style.toUpperCase()}**
-
-## Design DNA
-- Estilo Base: ${visualStyle.style}
-- Variante Export: ${style}
-- Color Primario: ${visualStyle.color_primary}
-- Stroke: ${visualStyle.stroke_width}px
-- Mood: ${visualStyle.mood}
-- Grid: ${visualStyle.grid_size}×${visualStyle.grid_size}
-
-## Estructura
-\`\`\`
-icons/${style}/
-  icon-home.svg
-  icon-user.svg
-  ... (24 iconos)
-style-dna.json
-\`\`\`
-
-gridxd.io — Design Intelligence`;
-
-      zip.file("README.md", readme);
-
-      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${projectName.toLowerCase().replace(/\s+/g, '-')}-${style}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
+        exportStyles,
+        compress: true
+      });
     } catch (err) {
       console.error("Download error:", err);
       setError("No se pudo generar el archivo de descarga.");
@@ -184,6 +165,8 @@ gridxd.io — Design Intelligence`;
     error,
     activeStyle,
     setActiveStyle,
+    packSize,
+    setPackSize,
     generateSystem,
     reset,
     downloadPack,

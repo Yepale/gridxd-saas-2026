@@ -5,8 +5,10 @@ import AuthModal from "@/components/AuthModal";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
+import UserMenu from "@/components/UserMenu";
+
 const Header = () => {
-  const { user, tier } = useAuth();
+  const { user } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [isSoundOn, setIsSoundOn] = useState(true);
@@ -25,18 +27,18 @@ const Header = () => {
       {/* Brand — horizontal lockup: logo + wordmark */}
       <div className="flex items-center gap-3">
         <img
-          src="/Grid Ne_n Sin Fondo.png"
+          src="/LogoMainGRIDXD.png"
           alt="GridXD"
-          className="w-9 h-9 object-contain"
+          className="w-10 h-10 object-contain"
         />
         <div className="flex flex-col leading-none">
-          <span className="text-sm font-black tracking-tight text-foreground">GridXD</span>
+          <span className="text-sm font-black tracking-tight text-foreground uppercase">GridXD</span>
           <span className="text-[10px] font-medium text-muted-foreground tracking-wider hidden sm:block">Design Intelligence</span>
         </div>
       </div>
 
       {/* Action area */}
-      <div className="flex items-center gap-2 sm:gap-4 p-1 rounded-2xl bg-background/40 backdrop-blur-xl border border-border/40 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-700">
+      <div className="flex items-center gap-2 sm:gap-4 p-1 rounded-2xl bg-background/40 backdrop-blur-xl border border-border/40 shadow-xl overflow-visible animate-in fade-in slide-in-from-top-4 duration-700">
         
         {/* Toggle Sound */}
         <button
@@ -60,23 +62,7 @@ const Header = () => {
 
         {/* User area */}
         {user ? (
-          <div className="flex items-center gap-3 pr-2">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
-                {tier}
-              </span>
-              <span className="text-[11px] text-muted-foreground truncate max-w-[80px] hidden sm:block">
-                {user.email}
-              </span>
-            </div>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="p-2.5 rounded-xl bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all duration-300 active:scale-95"
-              title="Cerrar sesión"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
+          <UserMenu />
         ) : (
           <Button
             variant="ghost"

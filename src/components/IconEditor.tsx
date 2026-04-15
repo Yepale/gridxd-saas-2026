@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Check, Trash2, RotateCcw, MousePointer, Sparkles } from "lucide-react";
+import { Check, Trash2, RotateCcw, MousePointer, Sparkles, X } from "lucide-react";
 import type { Region } from "@/hooks/useImageProcessor";
 
 interface IconEditorProps {
@@ -282,34 +282,38 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
             {regions.length} región{regions.length !== 1 ? "es" : ""}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={refineOpticalAdjustment}
             disabled={regions.length === 0 || isRefining}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-all border border-amber-500/20 disabled:opacity-30"
+            title="Ajuste Óptico"
           >
             <Sparkles className={`w-3.5 h-3.5 ${isRefining ? 'animate-spin' : ''}`} />
-            {isRefining ? "Ajustando..." : "Ajuste Óptico"}
+            <span className="hidden sm:inline">{isRefining ? "Ajustando..." : "Ajuste Óptico"}</span>
           </button>
           <button
             onClick={() => setRegions([])}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-400/10 transition-colors"
+            title="Borrar todo"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Borrar todo
+            <span className="hidden sm:inline">Borrar</span>
           </button>
           <button
             onClick={() => setRegions(initialRegions)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-muted/20 transition-colors"
+            title="Restablecer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Restablecer
+            <span className="hidden sm:inline">Reset</span>
           </button>
           <button
             onClick={onCancel}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-muted/20 transition-colors border border-border/50"
           >
-            Cancelar
+            <span className="hidden sm:inline">Cancelar</span>
+            <X className="w-3.5 h-3.5 sm:hidden" />
           </button>
           <button
             onClick={handleConfirmClean}
@@ -317,7 +321,7 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
           >
             <Check className="w-3.5 h-3.5" />
-            Confirmar selección
+            <span className="hidden sm:inline">Confirmar selección</span>
           </button>
         </div>
       </div>

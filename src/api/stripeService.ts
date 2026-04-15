@@ -25,4 +25,22 @@ export const stripeService = {
 
     return data.url;
   },
+
+  /**
+   * Creates a Stripe Customer Portal Session for managing subscriptions
+   * @returns The portal URL
+   */
+  async createPortalSession(): Promise<string> {
+    const { data, error } = await supabase.functions.invoke("customer-portal");
+
+    if (error) {
+      throw new Error(error.message || "Error al acceder al portal de gestión");
+    }
+
+    if (!data?.url) {
+      throw new Error("No se recibió URL de portal válida");
+    }
+
+    return data.url;
+  },
 };

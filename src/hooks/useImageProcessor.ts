@@ -395,73 +395,111 @@ export function useImageProcessor() {
   );
 
   // ─── Main entry point ──────────────────────────────────────────────────────
-  const processImage = useCallback(
-    async (file: File) => {
-      if (file.size > 10 * 1024 * 1024) {
-        setError("La imagen no puede superar 10MB");
-        return;
-      }
-      if (!["image/jpeg", "image/png"].includes(file.type)) {
-        setError("Solo se aceptan JPG y PNG");
-        return;
-      }
+  const processImages = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+      
+      const validFiles = files.filter(file => {
+        if (file.size > 10 * 1024 * 1024) {
+          setError(`La imagen ${file.name} supera los 10MB`);
+          return false;
+        }
+        if (!["image/jpeg", "image/png"].includes(file.type)) {
+          setError(`Solo se aceptan JPG y PNG. Saltando ${file.name}`);
+          return false;
+        }
+        return true;
+      });
+
+      if (validFiles.length === 0) return;
 
       setError(null);
       setIcons([]);
       setUsedBackend(false);
 
-      const url = URL.createObjectURL(file);
-      setPreview(url);
+      // Simple mode: if only one file, we can show preview and editor
+      if (validFiles.length === 1) {
+        const file = validFiles[0];
+        const url = URL.createObjectURL(file);
+        setPreview(url);
+        
+        const tierInfo = {
+          tier: authTier,
+          remainingFreeUses: 3 - parseInt(localStorage.getItem("gridxd_daily_uses") || "0", 10),
+        };
 
-      const tierInfo = {
-        tier: authTier,
-        remainingFreeUses:
-          3 - parseInt(localStorage.getItem("gridxd_daily_uses") || "0", 10),
-      };
+        if (tierInfo.tier === "free" && tierInfo.remainingFreeUses <= 0) {
+          setError("Has agotado tus usos gratuitos de hoy.");
+          return;
+        }
 
-      if (tierInfo.tier === "free" && tierInfo.remainingFreeUses <= 0) {
-        setError("Has agotado tus 3 usos gratuitos de hoy. Activa Pro para continuar.");
-        setState("idle");
-        return;
-      }
+        const options: ProcessingOptions = {
+          removeBackground,
+          upscale,
+          projectName: projectName || undefined,
+        };
 
-      const options: ProcessingOptions = {
-        removeBackground,
-        upscale,
-        projectName: projectName || undefined,
-      };
-
-      const strategy = getProcessingStrategy(tierInfo);
-
-      if (strategy === "backend") {
-        try {
-          setState("uploading");
-          const result = await processImageBackend(file, options);
-          setUsedBackend(true);
-
-          setState("done");
-          const today = new Date().toISOString().split("T")[0].replace(/-/g, "");
-          const proj = projectName || "Project";
-          const resLabel = upscale ? "2K" : "HD";
-
-          setIcons(
-            result.images.map((img, i) => ({
+        const strategy = getProcessingStrategy(tierInfo);
+        if (strategy === "backend") {
+          try {
+            setState("uploading");
+            const result = await processImageBackend(file, options);
+            setUsedBackend(true);
+            setState("done");
+            setIcons(result.images.map((img, i) => ({
               id: i + 1,
               dataUrl: img.url,
               svgContent: "",
-              name: img.name.startsWith("GRIDXD")
-                ? img.name
-                : `GRIDXD_${proj}_${(i + 1).toString().padStart(2, "0")}_${resLabel}_${today}.png`,
-            }))
-          );
-          incrementUsage();
-        } catch (err) {
-          console.warn("Backend failed, falling back to client:", err);
+              name: img.name
+            })));
+            incrementUsage();
+          } catch (err) {
+            await processClientSide(file, options);
+          }
+        } else {
           await processClientSide(file, options);
         }
-      } else {
-        await processClientSide(file, options);
+        return;
       }
+
+      // Batch Mode (Multiple Files)
+      setState("uploading");
+      let allExtracted: ExtractedIcon[] = [];
+      
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        const options: ProcessingOptions = {
+          removeBackground,
+          upscale,
+          projectName: `${projectName || "Batch"}_${i+1}`,
+        };
+
+        try {
+          // In batch mode we skip the editor for now and use auto-detection
+          const imgEl = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = URL.createObjectURL(file);
+          });
+
+          const regions = detectRegionsFromCanvas(imgEl);
+          const extracted = await extractIconsFromRegions(imgEl, regions, options);
+          
+          allExtracted = [...allExtracted, ...extracted.map((icon, idx) => ({
+            ...icon,
+            id: allExtracted.length + idx + 1
+          }))];
+          
+          setIcons([...allExtracted]);
+          setPreview(URL.createObjectURL(file)); // Show current file as preview
+        } catch (err) {
+          console.error(`Error processing batch file ${file.name}:`, err);
+        }
+      }
+      
+      setState("done");
+      incrementUsage();
     },
     [authTier, removeBackground, upscale, projectName, processClientSide]
   );
@@ -501,7 +539,7 @@ export function useImageProcessor() {
     error,
     usedBackend,
     visualStyle,
-    processImage,
+    processImages,
     reset,
     injectGeneratedIcon,
     // Editor
