@@ -185,11 +185,26 @@ export async function extractStyleFromBackend(file: File): Promise<VisualStyle |
       body: formData,
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn("Backend response for style extraction was not OK:", response.status);
+      return null;
+    }
 
     const data = await response.json();
-    return (data?.style as VisualStyle) ?? null;
-  } catch {
+    console.log("Style extraction data received:", data);
+    
+    // Support both {style: {...}} and raw style object
+    const style = data?.style || data;
+    
+    // Validate that it looks like a VisualStyle
+    if (style && typeof style === 'object' && 'stroke_width' in style) {
+      return style as VisualStyle;
+    }
+    
+    console.error("Invalid style format received:", data);
+    return null;
+  } catch (err) {
+    console.error("Error in extractStyleFromBackend:", err);
     return null;
   }
 }
@@ -212,10 +227,14 @@ export async function generateIconSVG(
       body: formData,
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      console.error("Icon generation backend error:", response.status, errData);
+      return null;
+    }
 
     const data = await response.json();
-    return (data?.svg as string) ?? null;
+    return (data?.svg as string) || (typeof data === 'string' ? data : null);
   } catch (err) {
     console.error("Icon generation error:", err);
     return null;
