@@ -52,20 +52,32 @@ export function isBackendConfigured(): boolean {
  * Perform a real health check against the backend
  */
 export async function checkBackendHealth(): Promise<boolean> {
-  if (!API_BASE_URL) return false;
+  if (!API_BASE_URL) {
+    console.warn("API_BASE_URL no está configurada.");
+    return false;
+  }
+  
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
     
+    console.log(`Verificando salud del backend en: ${API_BASE_URL}/health`);
     const response = await fetch(`${API_BASE_URL}/health`, { 
       method: "GET",
       signal: controller.signal
     });
     
     clearTimeout(timeoutId);
-    return response.ok;
+    if (!response.ok) {
+      console.error(`Backend respondió con error: ${response.status}`);
+      return false;
+    }
+    
+    const data = await response.json();
+    console.log("Backend operativo:", data);
+    return true;
   } catch (err) {
-    console.warn("Backend health check failed:", err);
+    console.error("No se pudo conectar con el backend de Railway. Verifica la URL y las variables de entorno:", err);
     return false;
   }
 }

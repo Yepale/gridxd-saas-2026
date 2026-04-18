@@ -22,9 +22,16 @@ from style_extractor import extract_style, generate_icon_svg
 app = FastAPI(title="GridXD Processing Backend")
 
 # Enable CORS for frontend
+# En producción, es mejor listar los dominios específicos (ej. tu-app.vercel.app)
+origins = [
+    "http://localhost:5173",
+    "https://gridxd.vercel.app",  # Cambia esto por tu dominio real de Vercel
+    "*"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
