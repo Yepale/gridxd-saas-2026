@@ -104,6 +104,13 @@ gridxd-main/
 └── .env.local               # Variables de entorno (NO commitear)
 ```
 
+## ✨ Funciones Estrella 2026
+
+- **Style Extractor (Gemini Vision):** Análisis automático del ADN visual de cualquier mockup.
+- **Generate Mode:** Generación de iconos SVG únicos que siguen estrictamente el estilo detectado.
+- **Extract Mode:** Detección de activos con escalado a 2K y eliminación de fondo en lote.
+- **Ecosistema Multi-plataforma:** Plugin para Figma y CLI para terminal integrados.
+
 ## 📋 Estado y Roadmap
 
 Consulta [TODO.md](./TODO.md) para el estado actual del desarrollo y funcionalidades futuras.
