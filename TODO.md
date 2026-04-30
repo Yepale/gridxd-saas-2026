@@ -55,7 +55,15 @@
 - [x] **QA Final:** Revisión de responsividad móvil y diseño "wow".
 - [x] **Dark/Light Mode:** Implementado soporte completo para tema claro.
 - [x] **Responsividad Móvil:** Mejoras en Hero, Pricing, UploadSection, ExtractMode.
+- [x] **CLI v1.1:** Implementada descarga real de ZIP y corrección de endpoints.
+
+## 🔮 VISION 2027: "The Infinite Library"
+
+- [ ] **Búsqueda Semántica:** "Dame un icono de un cohete al estilo de este logo".
+- [ ] **Editor de SVG Online:** Refinar trazos generados por IA directamente en la web.
+- [ ] **Marketplace de Estilos:** Usuarios pueden compartir su "DNA Visual" analizado por Gemini.
+- [ ] **Integración Slack/Teams:** Notificaciones y generación de assets desde el chat.
 
 ---
 
-> **Última actualización:** 29 de abril de 2026
+> **Última actualización:** 29 de abril de 2026 (Refuerzo de CLI y QA final)

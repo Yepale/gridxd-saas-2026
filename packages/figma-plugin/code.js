@@ -28,32 +28,60 @@ figma.ui.onmessage = async (msg) => {
         }
     }
     if (msg.type === 'extraction-success') {
-        figma.notify(`✅ ¡${msg.images.length} iconos generados por GridXD!`);
+        figma.notify(`✅ ¡${msg.icons.length} activos procesados!`);
         const nodes = [];
         let xOffset = 0;
-        for (let i = 0; i < msg.images.length; i++) {
-            const base64Data = msg.images[i].replace(/^data:image\/\w+;base64,/, "");
-            // Convertir base64 a Uint8Array
-            const binary = atob(base64Data);
-            const bytes = new Uint8Array(binary.length);
-            for (let j = 0; j < binary.length; j++) {
-                bytes[j] = binary.charCodeAt(j);
+        for (const icon of msg.icons) {
+            if (icon.svg) {
+                // Insert as SVG (Vector)
+                try {
+                    const svgNode = figma.createNodeFromSvg(icon.svg);
+                    svgNode.x = figma.viewport.center.x + xOffset;
+                    svgNode.y = figma.viewport.center.y;
+                    svgNode.name = icon.name || "gridxd-vector";
+                    figma.currentPage.appendChild(svgNode);
+                    nodes.push(svgNode);
+                }
+                catch (err) {
+                    console.error("Error inserting SVG:", err);
+                }
             }
-            const image = figma.createImage(bytes);
-            const rect = figma.createRectangle();
-            // Tamaño estándar de bloque para iconos es 64x64
-            rect.resize(64, 64);
-            rect.x = figma.viewport.center.x + xOffset;
-            rect.y = figma.viewport.center.y;
-            rect.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FIT' }];
-            rect.name = `gridxd-icon-${i + 1}`;
-            figma.currentPage.appendChild(rect);
-            nodes.push(rect);
-            xOffset += 80; // Espaciado entre iconos generados
+            else if (icon.image) {
+                // Insert as Image (Raster)
+                const base64Data = icon.image.replace(/^data:image\/\w+;base64,/, "");
+                const binary = atob(base64Data);
+                const bytes = new Uint8Array(binary.length);
+                for (let j = 0; j < binary.length; j++) {
+                    bytes[j] = binary.charCodeAt(j);
+                }
+                const image = figma.createImage(bytes);
+                const rect = figma.createRectangle();
+                rect.resize(64, 64);
+                rect.x = figma.viewport.center.x + xOffset;
+                rect.y = figma.viewport.center.y;
+                rect.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FIT' }];
+                rect.name = icon.name || "gridxd-icon";
+                figma.currentPage.appendChild(rect);
+                nodes.push(rect);
+            }
+            xOffset += 100;
         }
-        // Seleccionar y hacer zoom en los iconos recién creados
         figma.currentPage.selection = nodes;
         figma.viewport.scrollAndZoomIntoView(nodes);
+    }
+    if (msg.type === 'insert-svg') {
+        try {
+            const node = figma.createNodeFromSvg(msg.svg);
+            node.x = figma.viewport.center.x;
+            node.y = figma.viewport.center.y;
+            node.name = msg.name || "gridxd-ai-icon";
+            figma.currentPage.selection = [node];
+            figma.viewport.scrollAndZoomIntoView([node]);
+            figma.notify("✨ Icono inyectado correctamente");
+        }
+        catch (e) {
+            figma.notify("❌ Error al procesar el SVG");
+        }
     }
     if (msg.type === 'extraction-fail') {
         figma.notify("❌ Hubo un error de procesamiento. Revisa tamaño o conexión.");

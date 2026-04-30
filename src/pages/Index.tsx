@@ -28,14 +28,14 @@ const EcosystemBanner = () => (
         <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur hover:bg-white/10 transition-colors cursor-pointer group">
           <Figma className="w-8 h-8 text-pink-400 mb-4 group-hover:scale-110 transition-transform" />
           <h4 className="font-bold text-white mb-2">Figma Plugin</h4>
-          <p className="text-sm text-gray-400 mb-4">Extrae iconos directamente desde tu canvas en Figma. (Prototipo)</p>
-          <span className="text-xs font-bold px-2 py-1 bg-pink-500/20 text-pink-400 rounded">Próximamente</span>
+          <p className="text-sm text-gray-400 mb-4">Extrae iconos directamente desde tu canvas en Figma. Integración V2.</p>
+          <span className="text-xs font-bold px-2 py-1 bg-pink-500/20 text-pink-400 rounded">Beta Disponible</span>
         </div>
         <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur hover:bg-white/10 transition-colors cursor-pointer group">
           <Terminal className="w-8 h-8 text-green-400 mb-4 group-hover:scale-110 transition-transform" />
           <h4 className="font-bold text-white mb-2">CLI Tool</h4>
           <p className="text-sm text-gray-400 mb-4">Procesa carpetas masivas de sprites desde tu terminal local.</p>
-          <span className="text-xs font-bold px-2 py-1 bg-green-500/20 text-green-400 rounded">Próximamente</span>
+          <span className="text-xs font-bold px-2 py-1 bg-green-500/20 text-green-400 rounded">v1.1 Ready</span>
         </div>
       </div>
     </div>

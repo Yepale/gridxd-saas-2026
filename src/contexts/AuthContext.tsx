@@ -67,14 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [checkSubscription]);
 
   // Auto-refresh subscription every 60s
   useEffect(() => {
     if (!user) return;
     const interval = setInterval(checkSubscription, 60_000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, checkSubscription]);
 
   return (
     <AuthContext.Provider value={{ user, session, loading, tier, subscribed, checkSubscription }}>
