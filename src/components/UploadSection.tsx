@@ -10,7 +10,7 @@ import { downloadAssetsZip } from "@/lib/zip-utils";
 
 const UploadSection = () => {
   const processor = useImageProcessor();
-  const { tier } = useAuth();
+  const { plan } = useAuth();
   const [showUpsell, setShowUpsell] = useState(false);
   const [activeMode, setActiveMode] = useState<"extract" | "generate">("extract");
   const [exportStyle, setExportStyle] = useState<SvgStyle>("outline");
@@ -18,7 +18,7 @@ const UploadSection = () => {
 
   const handleDownloadZip = async () => {
     // Show upsell for free users before download if they didn't use backend
-    if (!processor.usedBackend && tier === "free" && !showUpsell) {
+    if (!processor.usedBackend && plan === "free" && !showUpsell) {
       setShowUpsell(true);
       return;
     }
@@ -26,7 +26,7 @@ const UploadSection = () => {
     const { icons, options, visualStyle } = processor;
     
     // PRO+ can export all 3 styles
-    const styles: SvgStyle[] = (tier === "proplus") ? ["outline", "filled", "duotone"] : [exportStyle];
+    const styles: SvgStyle[] = (plan === "proplus") ? ["outline", "filled", "duotone"] : [exportStyle];
 
     await downloadAssetsZip(icons, {
       projectName: options.projectName || "gridxd",

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const CheckoutSuccess = () => {
-  const { checkSubscription, tier } = useAuth();
+  const { checkSubscription, plan } = useAuth();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
 
@@ -39,7 +39,7 @@ const CheckoutSuccess = () => {
         <p className="text-muted-foreground text-lg">
           Tu plan{" "}
           <span className="text-primary font-bold uppercase">
-            {checking ? "..." : tier}
+            {checking ? "..." : plan}
           </span>{" "}
           ya está activo. Prepárate para procesar iconos sin límites.
         </p>

@@ -131,6 +131,44 @@ def _default_style() -> dict:
     }
 
 
+def _sanitize_svg(svg_code: str) -> str:
+    """
+    Robust sanitization to prevent XSS in SVGs using bleach.
+    Falls back to regex if bleach is unavailable.
+    """
+    try:
+        import bleach
+        from bleach.sanitizer import ALLOWED_TAGS, ALLOWED_ATTRIBUTES
+        
+        svg_tags = [
+            'svg', 'g', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 
+            'ellipse', 'defs', 'use', 'title', 'desc'
+        ]
+        
+        svg_attrs = {
+            '*': ['id', 'class', 'style', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 
+                  'stroke-linejoin', 'opacity', 'transform', 'viewBox', 'width', 'height', 
+                  'xmlns', 'version', 'x', 'y', 'r', 'cx', 'cy', 'x1', 'y1', 'x2', 'y2', 
+                  'd', 'points'],
+        }
+        
+        return bleach.clean(
+            svg_code,
+            tags=list(ALLOWED_TAGS) + svg_tags,
+            attributes={**ALLOWED_ATTRIBUTES, **svg_attrs},
+            strip=True
+        )
+    except ImportError:
+        print("[StyleExtractor] Bleach not found. Using fallback regex sanitization.")
+        # Remove script tags and their content
+        svg_code = re.sub(r"<script.*?>.*?</script>", "", svg_code, flags=re.DOTALL | re.IGNORECASE)
+        # Remove event handlers (onmouseover, onload, etc.)
+        svg_code = re.sub(r"\s+on\w+\s*=\s*['\"].*?['\"]", "", svg_code, flags=re.IGNORECASE)
+        # Remove javascript: pseudoprotocol
+        svg_code = re.sub(r"href\s*=\s*['\"]javascript:.*?['\"]", 'href="#"', svg_code, flags=re.IGNORECASE)
+        return svg_code
+
+
 async def generate_icon_svg(icon_name: str, dna: dict, variant: str = "outline") -> str:
     """
     Uses Gemini to generate original SVG code for a specific icon 
@@ -188,7 +226,8 @@ Ensure the icon is centered and fits within the 24x24 grid.
         svg_code = re.sub(r"```html\s*", "", svg_code)
         svg_code = re.sub(r"```\s*", "", svg_code)
         
-        return svg_code
+        # Security: Sanitize output before returning to client
+        return _sanitize_svg(svg_code)
 
     except Exception as e:
         print(f"[IconGenerator] Gemini error: {e}")

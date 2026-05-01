@@ -9,8 +9,8 @@ const corsHeaders = {
 };
 
 const TIERS: Record<string, string> = {
-  prod_UAPq4WGjOqrxdg: "pro",      // Starter
-  prod_UAPq0CGWvYwiI5: "proplus",  // Pro
+  prod_UAPq4WGjOqrxdg: "pro",      // Starter en Stripe
+  prod_UAPq0CGWvYwiI5: "proplus",  // Pro en Stripe
 };
 
 serve(async (req) => {
@@ -25,49 +25,36 @@ serve(async (req) => {
   );
 
   try {
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not set");
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header");
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Auth error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated");
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !user) {
+      throw new Error("Invalid or expired session");
+    }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    // Query 'subscribers' table instead of Stripe for speed
+    const { data: subData, error: subError } = await supabaseClient
+      .from("subscribers")
+      .select("plan, status, current_period_end")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (customers.data.length === 0) {
-      return new Response(JSON.stringify({ subscribed: false, tier: "free" }), {
+    if (subError) throw subError;
+
+    if (!subData || subData.status !== "active" && subData.status !== "trialing") {
+      return new Response(JSON.stringify({ subscribed: false, plan: "free" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const customerId = customers.data[0].id;
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
-
-    if (subscriptions.data.length === 0) {
-      return new Response(JSON.stringify({ subscribed: false, tier: "free" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const sub = subscriptions.data[0];
-    const productId = sub.items.data[0].price.product as string;
-    const tier = TIERS[productId] || "pro";
 
     return new Response(
       JSON.stringify({
         subscribed: true,
-        tier,
-        subscription_end: new Date(sub.current_period_end * 1000).toISOString(),
+        plan: subData.plan,
+        subscription_end: subData.current_period_end,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

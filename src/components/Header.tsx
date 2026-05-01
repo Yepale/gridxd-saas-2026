@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
 import UserMenu from "@/components/UserMenu";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const Header = () => {
   const { user } = useAuth();
@@ -51,13 +52,7 @@ const Header = () => {
         </button>
 
         {/* Toggle Theme */}
-        <button
-          onClick={() => setIsDark(!isDark)}
-          className="p-2.5 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-300"
-          title={isDark ? "Modo claro" : "Modo oscuro"}
-        >
-          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
+        <ThemeToggle />
 
         <div className="w-px h-6 bg-border/40 mx-1" />
 

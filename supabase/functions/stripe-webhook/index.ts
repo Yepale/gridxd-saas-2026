@@ -17,17 +17,32 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
  *  SUPABASE_SERVICE_ROLE_KEY
  */
 
-const PRODUCT_TO_TIER: Record<string, string> = {
+const PRODUCT_TO_PLAN: Record<string, string> = {
   prod_UAPq4WGjOqrxdg: "pro",      // Starter en Stripe
   prod_UAPq0CGWvYwiI5: "proplus",  // Pro en Stripe
 };
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
-};
+// ─── Allowed origins (NO wildcard) ────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://gridxd.vercel.app",
+  "https://gridxd-core-eta.vercel.app",
+];
+
+function getCorsHeaders(origin: string | null) {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[2];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
+    "Vary": "Origin",
+  };
+}
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -88,25 +103,15 @@ serve(async (req) => {
           break;
         }
 
-        const tier = isActive ? (PRODUCT_TO_TIER[productId] ?? "pro") : "free";
-        const statusMap: Record<string, string> = {
-          active: "active",
-          trialing: "trialing",
-          past_due: "past_due",
-          canceled: "canceled",
-          unpaid: "past_due",
-          incomplete: "past_due",
-          incomplete_expired: "canceled",
-        };
-        const mappedStatus = statusMap[sub.status] ?? "canceled";
+        const plan = isActive ? (PRODUCT_TO_PLAN[productId] ?? "pro") : "free";
 
         // Upsert subscribers table
         const { error: upsertError } = await supabase
           .from("subscribers")
           .upsert({
             user_id: userId,
-            plan: tier,
-            status: mappedStatus,
+            plan: plan,
+            status: sub.status as any,
             stripe_customer_id: customerId,
             stripe_subscription_id: sub.id,
             current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
@@ -115,7 +120,7 @@ serve(async (req) => {
 
         if (upsertError) throw upsertError;
 
-        console.log(`✅ Updated user ${userId} → plan: ${tier}`);
+        console.log(`✅ Updated user ${userId} → plan: ${plan}`);
         break;
       }
 
@@ -159,7 +164,7 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("Webhook processing error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

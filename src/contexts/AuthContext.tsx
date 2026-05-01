@@ -2,13 +2,13 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { authService } from "@/api/authService";
 import type { User, Session } from "@supabase/supabase-js";
 
-type SubscriptionTier = "free" | "pro" | "proplus";
+type SubscriptionPlan = "free" | "pro" | "proplus";
 
 interface AuthState {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  tier: SubscriptionTier;
+  plan: SubscriptionPlan;
   subscribed: boolean;
   checkSubscription: () => Promise<void>;
 }
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthState>({
   user: null,
   session: null,
   loading: true,
-  tier: "free",
+  plan: "free",
   subscribed: false,
   checkSubscription: async () => {},
 });
@@ -28,17 +28,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tier, setTier] = useState<SubscriptionTier>("free");
+  const [plan, setPlan] = useState<SubscriptionPlan>("free");
   const [subscribed, setSubscribed] = useState(false);
 
   const checkSubscription = useCallback(async () => {
     try {
       const data = await authService.checkSubscription();
       setSubscribed(data.subscribed);
-      setTier(data.tier as SubscriptionTier);
+      setPlan(data.plan as SubscriptionPlan);
     } catch {
       setSubscribed(false);
-      setTier("free");
+      setPlan("free");
     }
   }, []);
 
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(checkSubscription, 0);
         } else {
           setSubscribed(false);
-          setTier("free");
+          setPlan("free");
         }
       }
     );
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, checkSubscription]);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, tier, subscribed, checkSubscription }}>
+    <AuthContext.Provider value={{ user, session, loading, plan, subscribed, checkSubscription }}>
       {children}
     </AuthContext.Provider>
   );

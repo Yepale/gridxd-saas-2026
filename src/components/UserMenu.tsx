@@ -6,7 +6,7 @@ import { stripeService } from "@/api/stripeService";
 import { toast } from "sonner";
 
 const UserMenu = () => {
-  const { user, tier } = useAuth();
+  const { user, plan } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -50,7 +50,7 @@ const UserMenu = () => {
           {initials}
         </div>
         <div className="flex flex-col items-start leading-none hidden sm:flex">
-          <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{tier}</span>
+          <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{plan}</span>
           <span className="text-[11px] font-medium text-foreground truncate max-w-[100px]">{user.email?.split('@')[0]}</span>
         </div>
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
@@ -59,7 +59,7 @@ const UserMenu = () => {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-card border border-border shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
           <div className="px-4 py-3 border-b border-border/50 mb-1">
-            <p className="text-[10px] uppercase tracking-widest font-bold text-primary mb-0.5">{tier} Account</p>
+            <p className="text-[10px] uppercase tracking-widest font-bold text-primary mb-0.5">{plan} Account</p>
             <p className="text-sm font-semibold text-foreground truncate">{user.email}</p>
           </div>
 

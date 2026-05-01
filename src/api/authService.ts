@@ -39,7 +39,7 @@ export const authService = {
     if (error) throw error;
     return {
       subscribed: data.subscribed ?? false,
-      tier: data.tier ?? "free"
+      plan: data.plan ?? "free"
     };
   }
 };

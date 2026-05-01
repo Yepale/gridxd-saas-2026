@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const stripeService = {
   /**
-   * Creates a Stripe Checkout Session for a specific tier
+   * Creates a Stripe Checkout Session for a specific plan
    * @param priceId The Stripe price ID
    * @returns The checkout URL
    */

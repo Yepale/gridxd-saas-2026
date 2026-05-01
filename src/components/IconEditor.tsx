@@ -61,11 +61,13 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
     [imgSize, displaySize]
   );
 
-  const getEventPos = (e: React.MouseEvent) => {
+  const getEventPos = (e: React.MouseEvent | React.TouchEvent) => {
     const rect = containerRef.current!.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
     return {
-      x: Math.max(0, Math.min(e.clientX - rect.left, rect.width)),
-      y: Math.max(0, Math.min(e.clientY - rect.top, rect.height)),
+      x: Math.max(0, Math.min(clientX - rect.left, rect.width)),
+      y: Math.max(0, Math.min(clientY - rect.top, rect.height)),
     };
   };
 
@@ -143,7 +145,7 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
     }, 50);
   }, [regions, imgEl]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
     // Si dimos click en un botón HTML (borrar todo, confirmar, etc) saltamos
     if ((e.target as HTMLElement).closest('[data-region-btn]')) return;
     
@@ -173,10 +175,13 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
     // Default: Empieza a dibujar uno nuevo
     setAction({ type: 'draw', startX: x, startY: y });
     setDraft({ x, y, w: 0, h: 0 });
-    e.preventDefault();
+    
+    if (!('touches' in e)) {
+      e.preventDefault();
+    }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleInteractionMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!action) return;
     const { x, y } = getEventPos(e);
 
@@ -229,7 +234,7 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleInteractionEnd = (e: React.MouseEvent | React.TouchEvent) => {
     if (!action) return;
 
     if (action.type === "draw" && draft) {
@@ -339,19 +344,21 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
       {/* ── Canvas ── */}
       <div
         ref={containerRef}
-        className="relative select-none overflow-hidden cursor-crosshair"
-        style={{ maxHeight: "60vh" }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        className="relative select-none overflow-hidden cursor-crosshair touch-none max-h-[60vh]"
+        onMouseDown={handleInteractionStart}
+        onMouseMove={handleInteractionMove}
+        onMouseUp={handleInteractionEnd}
         onMouseLeave={() => { if (action) { setAction(null); setDraft(null); } }}
+        onTouchStart={handleInteractionStart}
+        onTouchMove={handleInteractionMove}
+        onTouchEnd={handleInteractionEnd}
+        onTouchCancel={() => { if (action) { setAction(null); setDraft(null); } }}
       >
         <img
           src={imgEl.src}
           alt="Imagen fuente"
           draggable={false}
-          className="w-full h-auto block pointer-events-none"
-          style={{ maxHeight: "60vh", objectFit: "contain" }}
+          className="w-full h-auto block pointer-events-none max-h-[60vh] object-contain"
         />
 
         <svg
@@ -447,8 +454,8 @@ const IconEditor = ({ imgEl, initialRegions, onConfirm, onCancel }: IconEditorPr
               onMouseEnter={() => setHoveredId(r.id)}
               onMouseLeave={() => setHoveredId(null)}
               onClick={(e) => { e.stopPropagation(); deleteRegion(r.id); }}
-              className="absolute w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center hover:bg-red-600 transition-all shadow-lg z-20"
-              style={{ left: `${btnX}px`, top: `${btnY}px`, transform: "translate(-50%, -50%)" }}
+              className="absolute w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center hover:bg-red-600 transition-all shadow-lg z-20 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${btnX}px`, top: `${btnY}px` }}
             >
               ×
             </button>

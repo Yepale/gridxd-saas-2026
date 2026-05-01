@@ -1,13 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   incrementUsage,
+  getUserPlan,
   getProcessingStrategy,
   processImageBackend,
   extractStyleFromBackend,
   ProcessingOptions,
   VisualStyle,
 } from "@/lib/api";
+import { logger } from "@/lib/logger";
 import { useAuth } from "@/contexts/AuthContext";
+import type { WorkerRegion } from "@/workers/regionDetector.worker";
 
 export type ProcessingState =
   | "idle"
@@ -60,7 +63,42 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// ─── PHASE 1: Detect bounding boxes only ─────────────────────────────────────
+// ─── PHASE 1: Detect bounding boxes — via Web Worker ────────────────────────
+async function detectRegionsViaWorker(
+  imgEl: HTMLImageElement
+): Promise<Region[]> {
+  const canvas = document.createElement("canvas");
+  canvas.width = imgEl.naturalWidth || imgEl.width;
+  canvas.height = imgEl.naturalHeight || imgEl.height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(imgEl, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  return new Promise((resolve) => {
+    const worker = new Worker(
+      new URL("../workers/regionDetector.worker.ts", import.meta.url),
+      { type: "module" }
+    );
+    worker.onmessage = (e: MessageEvent<{ regions: WorkerRegion[]; error: string | null }>) => {
+      worker.terminate();
+      if (e.data.error) {
+        logger.error("Worker region detection error:", e.data.error);
+        // Fallback: treat whole image as one region
+        resolve([{ id: "region-0-fallback", minX: 0, minY: 0, maxX: canvas.width, maxY: canvas.height }]);
+      } else {
+        resolve(e.data.regions);
+      }
+    };
+    worker.onerror = (err) => {
+      worker.terminate();
+      logger.error("Worker error:", err);
+      resolve([{ id: "region-0-fallback", minX: 0, minY: 0, maxX: canvas.width, maxY: canvas.height }]);
+    };
+    worker.postMessage({ imageData, width: canvas.width, height: canvas.height });
+  });
+}
+
+// ─── PHASE 1 fallback (kept for reference, no longer used on main thread) ─────
 function detectRegionsFromCanvas(
   imgEl: HTMLImageElement
 ): Region[] {
@@ -309,7 +347,7 @@ export function useImageProcessor() {
   const [upscale, setUpscale] = useState(true);
   const [projectName, setProjectName] = useState("");
 
-  const { tier: authTier } = useAuth();
+  const { plan: authPlan } = useAuth();
 
   const updateIconNames = useCallback(() => {
     if (icons.length === 0) return;
@@ -349,9 +387,9 @@ export function useImageProcessor() {
 
         setState("done");
         setIcons(extracted);
-        incrementUsage();
+        await incrementUsage();
       } catch (err) {
-        console.error("Extraction error:", err);
+        logger.error("Extraction error:", err);
         setError("Error al extraer los iconos. Intenta de nuevo.");
         setState("idle");
       }
@@ -377,9 +415,10 @@ export function useImageProcessor() {
         img.src = URL.createObjectURL(file);
       });
 
-      await delay(600);
+      await delay(300);
 
-      const regions = detectRegionsFromCanvas(imgEl);
+      // Run BFS in Web Worker — no main thread blocking
+      const regions = await detectRegionsViaWorker(imgEl);
 
       // Resolve style analysis (non-blocking — null if backend not configured)
       const style = await stylePromise;
@@ -423,13 +462,11 @@ export function useImageProcessor() {
         const url = URL.createObjectURL(file);
         setPreview(url);
         
-        const tierInfo = {
-          tier: authTier,
-          remainingFreeUses: 3 - parseInt(localStorage.getItem("gridxd_daily_uses") || "0", 10),
-        };
+        const planInfo = await getUserPlan();
 
-        if (tierInfo.tier === "free" && tierInfo.remainingFreeUses <= 0) {
+        if (planInfo.plan === "free" && planInfo.remainingFreeUses <= 0) {
           setError("Has agotado tus usos gratuitos de hoy.");
+          setState("idle");
           return;
         }
 
@@ -439,7 +476,7 @@ export function useImageProcessor() {
           projectName: projectName || undefined,
         };
 
-        const strategy = getProcessingStrategy(tierInfo);
+        const strategy = getProcessingStrategy(planInfo);
         if (strategy === "backend") {
           try {
             setState("uploading");
@@ -452,7 +489,7 @@ export function useImageProcessor() {
               svgContent: "",
               name: img.name
             })));
-            incrementUsage();
+            await incrementUsage();
           } catch (err) {
             await processClientSide(file, options);
           }
@@ -463,6 +500,13 @@ export function useImageProcessor() {
       }
 
       // Batch Mode (Multiple Files)
+      const batchPlanInfo = await getUserPlan();
+      if (batchPlanInfo.plan === "free" && batchPlanInfo.remainingFreeUses <= 0) {
+        setError("Has agotado tus usos gratuitos de hoy.");
+        setState("idle");
+        return;
+      }
+
       setState("uploading");
       let allExtracted: ExtractedIcon[] = [];
       
@@ -483,7 +527,8 @@ export function useImageProcessor() {
             img.src = URL.createObjectURL(file);
           });
 
-          const regions = detectRegionsFromCanvas(imgEl);
+          // Use worker for batch too
+          const regions = await detectRegionsViaWorker(imgEl);
           const extracted = await extractIconsFromRegions(imgEl, regions, options);
           
           allExtracted = [...allExtracted, ...extracted.map((icon, idx) => ({
@@ -494,14 +539,14 @@ export function useImageProcessor() {
           setIcons([...allExtracted]);
           setPreview(URL.createObjectURL(file)); // Show current file as preview
         } catch (err) {
-          console.error(`Error processing batch file ${file.name}:`, err);
+          logger.error(`Error processing batch file ${file.name}:`, err);
         }
       }
       
       setState("done");
-      incrementUsage();
+      await incrementUsage();
     },
-    [authTier, removeBackground, upscale, projectName, processClientSide]
+    [removeBackground, upscale, projectName, processClientSide]
   );
 
   const reset = () => {

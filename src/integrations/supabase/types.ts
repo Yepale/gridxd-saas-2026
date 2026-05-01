@@ -18,7 +18,9 @@ export type Database = {
         Row: {
           created_at: string
           current_period_end: string | null
+          daily_uses: number
           id: string
+          last_reset_date: string
           plan: Database["public"]["Enums"]["subscription_plan"]
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id: string | null
@@ -29,7 +31,9 @@ export type Database = {
         Insert: {
           created_at?: string
           current_period_end?: string | null
+          daily_uses?: number
           id?: string
+          last_reset_date?: string
           plan?: Database["public"]["Enums"]["subscription_plan"]
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -40,7 +44,9 @@ export type Database = {
         Update: {
           created_at?: string
           current_period_end?: string | null
+          daily_uses?: number
           id?: string
+          last_reset_date?: string
           plan?: Database["public"]["Enums"]["subscription_plan"]
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -88,7 +94,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_and_increment_usage: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       subscription_plan: "free" | "pro" | "proplus"

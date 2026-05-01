@@ -1,5 +1,5 @@
-// Stripe product & price IDs for GridXD tiers
-export const STRIPE_TIERS = {
+// Stripe product & price IDs for GridXD plans
+export const STRIPE_PLANS = {
   pro: {
     product_id: "prod_UAPq4WGjOqrxdg",
     price_id: "price_1TC51BB8N0ot3puTHxyXmnBj",

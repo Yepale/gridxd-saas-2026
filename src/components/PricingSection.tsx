@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { stripeService } from "@/api/stripeService";
-import { STRIPE_TIERS } from "@/lib/stripe-config";
+import { STRIPE_PLANS } from "@/lib/stripe-config";
 import AuthModal from "@/components/AuthModal";
 import { toast } from "sonner";
 
@@ -20,7 +20,7 @@ const plans = [
     ],
     cta: "Empezar gratis",
     highlighted: false,
-    tierKey: null as string | null,
+    planKey: null as string | null,
   },
   {
     name: "Pro",
@@ -37,7 +37,7 @@ const plans = [
     ],
     cta: "Activar Pro",
     highlighted: true,
-    tierKey: "pro",
+    planKey: "pro",
   },
   {
     name: "Pro+",
@@ -53,17 +53,17 @@ const plans = [
     ],
     cta: "Activar Pro+",
     highlighted: false,
-    tierKey: "proplus",
+    planKey: "proplus",
   },
 ];
 
 const PricingSection = () => {
-  const { user, tier: currentTier } = useAuth();
+  const { user, plan: currentPlan } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
-  const [loadingTier, setLoadingTier] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
-  const handleActivate = async (tierKey: string | null) => {
-    if (!tierKey) {
+  const handleActivate = async (planKey: string | null) => {
+    if (!planKey) {
       window.location.hash = "#upload";
       return;
     }
@@ -74,8 +74,8 @@ const PricingSection = () => {
     }
 
     // If already on a paid plan, redirect to portal for upgrade/downgrade
-    if (currentTier !== "free") {
-      setLoadingTier(tierKey);
+    if (currentPlan !== "free") {
+      setLoadingPlan(planKey);
       try {
         const url = await stripeService.createPortalSession();
         if (url) {
@@ -85,17 +85,17 @@ const PricingSection = () => {
         const error = err as Error;
         toast.error(error.message || "Error al abrir portal de suscripción");
       } finally {
-        setLoadingTier(null);
+        setLoadingPlan(null);
       }
       return;
     }
 
-    const stripeTier = STRIPE_TIERS[tierKey as keyof typeof STRIPE_TIERS];
-    if (!stripeTier) return;
+    const stripePlan = STRIPE_PLANS[planKey as keyof typeof STRIPE_PLANS];
+    if (!stripePlan) return;
 
-    setLoadingTier(tierKey);
+    setLoadingPlan(planKey);
     try {
-      const url = await stripeService.createCheckoutSession(stripeTier.price_id);
+      const url = await stripeService.createCheckoutSession(stripePlan.price_id);
       if (url) {
         window.location.href = url;
       }
@@ -103,13 +103,13 @@ const PricingSection = () => {
       const error = err as Error;
       toast.error(error.message || "Error al crear sesión de pago");
     } finally {
-      setLoadingTier(null);
+      setLoadingPlan(null);
     }
   };
 
-  const isCurrentPlan = (tierKey: string | null) => {
-    if (!tierKey) return currentTier === "free";
-    return currentTier === tierKey;
+  const isCurrentPlan = (planKey: string | null) => {
+    if (!planKey) return currentPlan === "free";
+    return currentPlan === planKey;
   };
 
   return (
@@ -130,7 +130,7 @@ const PricingSection = () => {
                 plan.highlighted
                   ? "bg-card border-primary glow-cyan"
                   : "bg-card border-border hover:border-muted-foreground/30 shadow-xl"
-              } ${isCurrentPlan(plan.tierKey) ? "ring-2 ring-primary" : ""}`}
+              } ${isCurrentPlan(plan.planKey) ? "ring-2 ring-primary" : ""}`}
             >
               {plan.highlighted && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 sm:px-4 sm:py-1 bg-primary text-primary-foreground text-[10px] sm:text-xs font-bold rounded-full flex items-center gap-1 shadow-lg whitespace-nowrap">
@@ -139,7 +139,7 @@ const PricingSection = () => {
                 </div>
               )}
 
-              {isCurrentPlan(plan.tierKey) && (
+              {isCurrentPlan(plan.planKey) && (
                 <div className="absolute -top-3 right-4 sm:right-6 px-2 py-0.5 sm:px-3 sm:py-1 bg-accent text-accent-foreground text-[10px] sm:text-xs font-bold rounded-full shadow-md whitespace-nowrap">
                   TU PLAN
                 </div>
@@ -168,17 +168,17 @@ const PricingSection = () => {
               </ul>
 
               <button
-                onClick={() => handleActivate(plan.tierKey)}
-                disabled={isCurrentPlan(plan.tierKey) || (loadingTier !== null && loadingTier === plan.tierKey)}
+                onClick={() => handleActivate(plan.planKey)}
+                disabled={isCurrentPlan(plan.planKey) || (loadingPlan !== null && loadingPlan === plan.planKey)}
                 className={`w-full py-3 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm transition-all shadow-lg ${
                   plan.highlighted
                     ? "bg-primary text-primary-foreground hover:scale-105 active:scale-95 glow-cyan"
                     : "bg-muted text-foreground hover:bg-muted/80 active:scale-95"
                 } disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100`}
               >
-                {(loadingTier !== null && loadingTier === plan.tierKey)
+                {(loadingPlan !== null && loadingPlan === plan.planKey)
                   ? "Cargando..."
-                  : isCurrentPlan(plan.tierKey)
+                  : isCurrentPlan(plan.planKey)
                   ? "Plan actual"
                   : plan.cta}
               </button>

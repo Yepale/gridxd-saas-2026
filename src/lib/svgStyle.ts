@@ -4,7 +4,7 @@
  * Applies a visual style (outline, filled, duotone) to any SVG string.
  * Pure client-side — no backend required.
  *
- * Tier access:
+ * Plan access:
  *  FREE     → outline only
  *  PRO      → outline | filled | duotone (single variant export)
  *  PRO+     → all 3 variants (future: multi-folder ZIP)
@@ -108,16 +108,16 @@ export function applyStyleToSvg(
 }
 
 /**
- * Check if a tier can access a given style variant.
+ * Check if a plan can access a given style variant.
  * FREE  → outline only
  * PRO   → all styles
  * PRO+  → all styles + multi-export
  */
 export function canAccessStyle(
-  tier: "free" | "pro" | "proplus",
+  plan: "free" | "pro" | "proplus",
   style: SvgStyle
 ): boolean {
-  if (tier === "pro" || tier === "proplus") return true;
+  if (plan === "pro" || plan === "proplus") return true;
   return style === "outline"; // free: outline only
 }
 
