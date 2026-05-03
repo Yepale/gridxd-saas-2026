@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "your_project_name"
+version = "0.1.0"
+description = "A FastAPI project configured for Railway deployment"
+authors = ["Your Name <your_email@example.com>"]
+
+[tool.poetry.dependencies]
+fastapi = "^0.75.0"
+uvicorn = "^0.17.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
