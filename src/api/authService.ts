@@ -99,8 +99,9 @@ export const authService = {
       subscribed: data.subscribed ?? false,
       plan: data.plan ?? "free"
     };
-  }
+  },
   /**
+
    * Listen to auth state changes
    */
   onAuthStateChange(callback: (event: AuthChangeEvent, session: Session | null) => void) {
