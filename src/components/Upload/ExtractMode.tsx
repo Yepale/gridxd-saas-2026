@@ -5,10 +5,10 @@ import { SvgStyle, STYLE_META, canAccessStyle } from "@/lib/svgStyle";
 import { useAuth } from "@/contexts/AuthContext";
 import IconEditor from "@/components/IconEditor";
 import { StyleCard } from "@/components/StyleCard";
-import { SidebarIconGenerator } from "@/components/SidebarIconGenerator";
+import { useImageProcessor, ExtractedIcon } from "@/hooks/useImageProcessor";
 
 interface ExtractModeProps {
-  processor: any; // useImageProcessor return type
+  processor: ReturnType<typeof useImageProcessor>;
   exportStyle: SvgStyle;
   setExportStyle: (s: SvgStyle) => void;
   onUpgrade: (s: SvgStyle) => void;
@@ -137,7 +137,7 @@ export const ExtractMode = ({ processor, exportStyle, setExportStyle, onUpgrade,
 
               <div className={`p-10 pb-16 w-full max-h-[700px] overflow-y-auto canvas-bg-${canvasMode} no-scrollbar`}>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-8 max-w-5xl mx-auto">
-                  {icons.map((icon: any) => (
+                  {icons.map((icon: ExtractedIcon) => (
                     <button 
                       key={icon.id} 
                       className="group relative flex flex-col items-center gap-3 transition-transform hover:scale-110 active:scale-95"
@@ -265,7 +265,7 @@ export const ExtractMode = ({ processor, exportStyle, setExportStyle, onUpgrade,
           
           <div className="grid grid-cols-3 gap-6 h-full">
             {(["outline", "filled", "duotone"] as SvgStyle[]).map((s) => {
-              const locked = !canAccessStyle(plan as any, s);
+              const locked = !canAccessStyle(plan as "free" | "pro" | "proplus", s);
               const active = exportStyle === s;
               return (
                 <button
@@ -309,7 +309,8 @@ export const ExtractMode = ({ processor, exportStyle, setExportStyle, onUpgrade,
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e.preventDefault(); setDragOver(false); const files = Array.from(e.dataTransfer.files); if (files.length > 0) processImages(files); }}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
-        className={`relative cursor-pointer rounded-[2rem] border-2 border-dashed p-10 text-center transition-all duration-500 group overflow-hidden ${
+        tabIndex={0}
+        className={`relative block w-full cursor-pointer rounded-[2rem] border-2 border-dashed p-10 text-center transition-all duration-500 group overflow-hidden ${
           dragOver 
             ? "border-primary bg-primary/10" 
             : "border-white/10 bg-white/5 hover:border-primary/20"
@@ -320,10 +321,14 @@ export const ExtractMode = ({ processor, exportStyle, setExportStyle, onUpgrade,
           type="file" 
           accept="image/*" 
           multiple 
-          className="hidden" 
+          className="sr-only" 
           title="Seleccionar archivos"
           aria-label="Subir imágenes"
-          onChange={(e) => { const files = e.target.files ? Array.from(e.target.files) : []; if (files.length > 0) processImages(files); }} 
+          onChange={(e) => { 
+            const files = e.target.files ? Array.from(e.target.files) : []; 
+            if (files.length > 0) processImages(files); 
+            e.target.value = ''; 
+          }} 
         />
         <div className="relative z-10 flex items-center justify-center gap-4">
           <Upload className={`w-6 h-6 ${dragOver ? "text-primary animate-bounce" : "text-muted-foreground group-hover:text-primary transition-colors"}`} aria-hidden="true" />

@@ -9,11 +9,12 @@ const corsHeaders = {
 };
 
 const TIERS: Record<string, string> = {
-  prod_UAPq4WGjOqrxdg: "pro",      // Starter en Stripe
-  prod_UAPq0CGWvYwiI5: "proplus",  // Pro en Stripe
+  prod_USRjoaufxAp5xI: "pro",      // Pro en Stripe
+  prod_USRjibmMxLKW3g: "proplus",  // Pro+ en Stripe
 };
 
-serve(async (req) => {
+
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,14 +27,26 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header");
+    if (!authHeader) {
+      console.error("Missing Authorization header");
+      return new Response(JSON.stringify({ error: "No authorization header" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
 
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
     
     if (userError || !user) {
-      throw new Error("Invalid or expired session");
+      console.error("Auth error:", userError?.message || "User not found");
+      return new Response(JSON.stringify({ error: "Invalid or expired session" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
     }
+
+    console.log(`Checking subscription for user: ${user.id} (${user.email})`);
 
     // Query 'subscribers' table instead of Stripe for speed
     const { data: subData, error: subError } = await supabaseClient
@@ -42,14 +55,19 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (subError) throw subError;
+    if (subError) {
+      console.error("Database error fetching subscriber:", subError.message);
+      throw subError;
+    }
 
-    if (!subData || subData.status !== "active" && subData.status !== "trialing") {
+    if (!subData || (subData.status !== "active" && subData.status !== "trialing")) {
+      console.log(`User ${user.id} has no active subscription. Returning free plan.`);
       return new Response(JSON.stringify({ subscribed: false, plan: "free" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    console.log(`User ${user.id} has active plan: ${subData.plan}`);
     return new Response(
       JSON.stringify({
         subscribed: true,
@@ -58,10 +76,13 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal Server Error";
+    console.error("Uncaught exception in check-subscription:", message);
+    return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
   }
 });
+

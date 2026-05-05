@@ -18,8 +18,8 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
  */
 
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  prod_TPDRgnDAWN0YGl: "pro",      // Premium en Stripe
-  prod_TPFYLTuQtsdQbY: "proplus",  // Enterprise en Stripe
+  prod_USRjoaufxAp5xI: "pro",      // Pro en Stripe
+  prod_USRjibmMxLKW3g: "proplus",  // Pro+ en Stripe
 };
 
 
@@ -58,7 +58,7 @@ serve(async (req) => {
     );
   }
 
-  const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+  const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
   // Verify Stripe signature
   const signature = req.headers.get("stripe-signature");

@@ -76,11 +76,13 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2025-08-27.basil",
+      apiVersion: "2024-06-20",
     });
 
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     const customerId = customers.data[0]?.id;
+    
+    console.log(`Creating checkout session for user: ${user.id}, stripe customer: ${customerId || 'new'}`);
 
     const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin)
       ? origin
@@ -97,13 +99,15 @@ serve(async (req) => {
       subscription_data: { metadata: { supabase_user_id: user.id } },
     });
 
+    console.log(`Checkout session created: ${session.id}`);
+
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (error) {
-    console.error("create-checkout error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+  } catch (error: any) {
+    console.error("create-checkout error:", error.message || error);
+    return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
